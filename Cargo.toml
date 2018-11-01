@@ -2,8 +2,12 @@
 name = "nianjia-rumtime"
 version = "0.0.1"
 authors = ["Pengfei Zhang <zpfalpc23@gmail.com>"]
+build = "build.rs"
 
 
 [dependencies]
 parity-wasm = "0.35"
 llvm-sys = "70.0"
+
+[build-dependencies]
+bindgen = "0.43"

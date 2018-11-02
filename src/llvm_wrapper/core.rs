@@ -1,5 +1,6 @@
-use llvm_sys::core;
-use llvm_sys::prelude;
+// use llvm_sys::core;
+// use llvm_sys::prelude;
+use super::llvm;
 
 macro_rules! c_str {
     ($s:expr) => {{
@@ -9,11 +10,11 @@ macro_rules! c_str {
 }
 
 #[inline]
-pub fn LLVMContextCreate() -> prelude::LLVMContextRef {
-    unsafe { core::LLVMContextCreate() }
+pub fn LLVMContextCreate() -> llvm::LLVMContextRef {
+    unsafe { llvm::LLVMContextCreate() }
 }
 
 #[inline]
-pub fn LLVMModuleCreateWithName(name: &String) -> prelude::LLVMModuleRef {
-    unsafe { core::LLVMModuleCreateWithName(c_str!(name)) }
+pub fn LLVMModuleCreateWithName(name: &String) -> llvm::LLVMModuleRef {
+    unsafe { llvm::LLVMModuleCreateWithName(c_str!(name)) }
 }

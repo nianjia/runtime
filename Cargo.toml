@@ -2,12 +2,13 @@
 name = "nianjia-rumtime"
 version = "0.0.1"
 authors = ["Pengfei Zhang <zpfalpc23@gmail.com>"]
-build = "build.rs"
 
+
+[lib]
+name = "nrt"
+path = "src/lib.rs"
 
 [dependencies]
 parity-wasm = "0.35"
-llvm-sys = "70.0"
-
-[build-dependencies]
-bindgen = "0.43"
+inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "llvm3-7" }
+clap = "2.32.0"

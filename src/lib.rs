@@ -46,12 +46,37 @@ fn emit_module(wasm: &WASMModule, context: Context) -> LLVMModule {
         context.i32_type.fn_type(&[], false),
         None,
     );
+
     if let Some(type_section) = wasm.type_section() {
         for i in 0..type_section.types().len() {
-            let s = format!("typeId{}!", i);
+            let s = format!("typeId{}", i);
+
             module.add_global(context.i8_type, Some(AddressSpace::Const), s.as_str());
         }
     }
+
+    if let Some(table_section) = wasm.table_section() {
+        for i in 0..table_section.entries().len() {
+            let s = format!("tableOffset{}", i);
+            module.add_global(context.i8_type, Some(AddressSpace::Const), s.as_str());
+        }
+    }
+
+    if let Some(memory_section) = wasm.memory_section() {
+        for i in 0..memory_section.entries().len() {
+            let s = format!("memoryOffset{}", i);
+            module.add_global(context.i8_type, Some(AddressSpace::Const), s.as_str());
+        }
+    }
+
+    if let Some(global_section) = wasm.global_section() {
+        for i in 0..global_section.entries().len() {
+            let s = format!("global{}", i);
+            module.add_global(context.i8_type, Some(AddressSpace::Const), s.as_str());
+        }
+    }
+
+    // if let Some(exception_section) = wasm.exception_section() {}
     module
 }
 

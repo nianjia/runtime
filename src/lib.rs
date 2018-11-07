@@ -76,7 +76,12 @@ fn emit_module(wasm: &WASMModule, context: Context) -> LLVMModule {
         }
     }
 
-    // if let Some(exception_section) = wasm.exception_section() {}
+    if let Some(functions) = wasm.function_section() {
+        for i in 0..functions.entries().len() {
+            let s = format!("functionDef{}", i);
+            module.add_global(context.i8_type, Some(AddressSpace::Const), s.as_str());
+        }
+    }
     module
 }
 

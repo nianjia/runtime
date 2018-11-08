@@ -12,6 +12,7 @@ use parity_wasm::elements::Type as WASMType;
 use parity_wasm::elements::TypeSection as WASMTypeSection;
 use parity_wasm::elements::ValueType as WASMValueType;
 
+mod llvm;
 mod utils;
 
 struct Context {

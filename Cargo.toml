@@ -12,3 +12,4 @@ path = "src/lib.rs"
 parity-wasm = "0.35"
 inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "llvm3-7" }
 clap = "2.32.0"
+llvm-sys = "70.0.0"

@@ -1,6 +1,6 @@
 use llvm_sys::LLVMCallConv;
 
-enum CallConvention {
+pub enum CallConvention {
     WASM,
     Intrinsic,
     IntrinsicWithContextSwitch,
@@ -8,8 +8,8 @@ enum CallConvention {
 }
 
 // impl CallConvention {
-pub fn get_llvm_call_convention() -> LLVMCallConv {
-    match self {
+pub fn get_llvm_call_convention(call_conv: CallConvention) -> LLVMCallConv {
+    match call_conv {
         CallConvention::WASM => LLVMCallConv::LLVMFastCallConv,
         _ => LLVMCallConv::LLVMCCallConv,
     }

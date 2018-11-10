@@ -6,6 +6,7 @@ use inkwell::context::Context as LLVMContext;
 use inkwell::module::Module as LLVMModule;
 use inkwell::types::{BasicTypeEnum, FloatType, FunctionType, IntType, PointerType, VoidType};
 use inkwell::AddressSpace;
+use llvm_sys::prelude::LLVMContextRef;
 use parity_wasm::elements::FunctionType as WASMFunctionType;
 use parity_wasm::elements::Module as WASMModule;
 use parity_wasm::elements::Type as WASMType;

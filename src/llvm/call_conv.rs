@@ -1,3 +1,4 @@
+use llvm_sys::prelude::LLVMValueRef;
 use llvm_sys::LLVMCallConv;
 
 pub struct CallConv {
@@ -5,7 +6,7 @@ pub struct CallConv {
 }
 
 impl CallConv {
-    pub(crate) fn new(call_conv: LLVMCallConv) -> Self {
+    pub(crate) fn new(value: LLVMValueRef) -> Option<Self> {
         Self { call_conv }
     }
 }

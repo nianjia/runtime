@@ -20,7 +20,7 @@ use super::debuginfo::{
     DISubrange, DITemplateTypeParameter, DIType, DIVariable,
 };
 
-use libc::{c_char, c_int, c_uint, size_t};
+use libc::{c_char, c_double, c_int, c_uint, size_t};
 use libc::{c_ulonglong, c_void};
 
 use std::marker::PhantomData;
@@ -615,6 +615,7 @@ extern "C" {
         high: &mut u64,
         low: &mut u64,
     ) -> bool;
+    pub fn LLVMConstReal(RealTy: &Type, N: c_double) -> &Value;
     pub fn LLVMConstRealGetDouble(ConstantVal: &Value, losesInfo: &mut Bool) -> f64;
 
     // Operations on composite constants

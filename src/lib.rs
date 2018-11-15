@@ -3,6 +3,7 @@
 #![allow(dead_code)]
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
+#![allow(non_snake_case)]
 #![allow(unused_imports)]
 
 extern crate libc;
@@ -26,9 +27,9 @@ extern crate parity_wasm;
 // use parity_wasm::elements::ValueType as WASMValueType;
 
 mod codegen;
-mod ir;
 mod llvm;
 mod utils;
+mod wasm;
 
 // struct Context<'a> {
 //     i8_type: &'a llvm::Type,

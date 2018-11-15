@@ -1,6 +1,7 @@
 use super::_type::Type;
 use super::common;
 use llvm;
+use wasm::types::{ValueType, V128};
 
 lazy_static! {
     static ref IS_LLVM_INITIALIZED: bool = {
@@ -25,6 +26,16 @@ pub struct Context<'a> {
     f64_type: &'a llvm::Type,
     i8_ptr_type: &'a llvm::Type,
     iptr_type: &'a llvm::Type,
+    i8x16_type: &'a llvm::Type,
+    i16x8_type: &'a llvm::Type,
+    i32x4_type: &'a llvm::Type,
+    i64x2_type: &'a llvm::Type,
+    f32x4_type: &'a llvm::Type,
+    f64x2_type: &'a llvm::Type,
+    exception_pointer_struct_type: &'a llvm::Type,
+    anyref_type: &'a llvm::Type,
+    typed_zero_constants: [&'a llvm::Value; ValueType::LENGTH],
+    value_types: [&'a llvm::Type; ValueType::LENGTH],
 }
 
 impl<'a> Context<'a> {
@@ -80,9 +91,16 @@ impl<'a> Context<'a> {
             Type::void(llctx),
         ];
         let typed_zero_constants = [
-            Type::void(llctx),
-            Type::void(llctx),
-            // common::C_uint(i32_type, 0),
+            common::const_null(i32_type),
+            common::const_null(i32_type),
+            common::const_u32(llctx, 0),
+            common::const_u64(llctx, 0),
+            common::const_f32(llctx, 0.0),
+            common::const_f64(llctx, 0.0),
+            common::const_v128(llctx, V128::zero()),
+            common::const_null(anyref_type),
+            common::const_null(anyref_type),
+            common::const_null(anyref_type),
         ];
         Self {
             llctx,
@@ -94,6 +112,16 @@ impl<'a> Context<'a> {
             f64_type,
             i8_ptr_type,
             iptr_type: i64_type,
+            i8x16_type,
+            i16x8_type,
+            i32x4_type,
+            i64x2_type,
+            f32x4_type,
+            f64x2_type,
+            exception_pointer_struct_type,
+            anyref_type,
+            typed_zero_constants,
+            value_types,
         }
     }
 }

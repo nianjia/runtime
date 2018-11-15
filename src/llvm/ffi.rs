@@ -524,8 +524,8 @@ extern "C" {
 
 extern "C" {
     // Create and destroy contexts.
-    pub fn LLVMRustContextCreate(shouldDiscardNames: bool) -> &'static mut Context;
-    pub fn LLVMContextDispose(C: &'static mut Context);
+    pub fn LLVMRustContextCreate<'a>(shouldDiscardNames: bool) -> &'a mut Context;
+    pub fn LLVMContextDispose<'a>(C: &'a Context);
     pub fn LLVMGetMDKindIDInContext(C: &Context, Name: *const c_char, SLen: c_uint) -> c_uint;
 
     // Create modules.
@@ -559,14 +559,14 @@ extern "C" {
     pub fn LLVMDoubleTypeInContext(C: &Context) -> &Type;
 
     // Operations on function types
-    // pub fn LLVMFunctionType(
-    //     ReturnType: &'a Type,
-    //     ParamTypes: *const &'a Type,
-    //     ParamCount: c_uint,
-    //     IsVarArg: Bool,
-    // ) -> &'a Type;
+    pub fn LLVMFunctionType<'a>(
+        ReturnType: &'a Type,
+        ParamTypes: *const &'a Type,
+        ParamCount: c_uint,
+        IsVarArg: Bool,
+    ) -> &'a Type;
     pub fn LLVMCountParamTypes(FunctionTy: &Type) -> c_uint;
-    // pub fn LLVMGetParamTypes(FunctionTy: &'a Type, Dest: *mut &'a Type);
+    pub fn LLVMGetParamTypes<'a>(FunctionTy: &'a Type, Dest: *mut &'a Type);
 
     // Operations on struct types
     pub fn LLVMStructTypeInContext<'a>(
@@ -632,11 +632,11 @@ extern "C" {
     //     Packed: Bool,
     // ) -> &'a Value;
 
-    // pub fn LLVMConstArray(
-    //     ElementTy: &'a Type,
-    //     ConstantVals: *const &'a Value,
-    //     Length: c_uint,
-    // ) -> &'a Value;
+    pub fn LLVMConstArray<'a>(
+        ElementTy: &'a Type,
+        ConstantVals: *const &'a Value,
+        Length: c_uint,
+    ) -> &'a Value;
     pub fn LLVMConstVector(ScalarConstantVals: *const &Value, Size: c_uint) -> &Value;
 
     // Constant expressions
@@ -646,7 +646,7 @@ extern "C" {
     //     NumIndices: c_uint,
     // ) -> &'a Value;
     // pub fn LLVMConstZExt(ConstantVal: &'a Value, ToType: &'a Type) -> &'a Value;
-    // pub fn LLVMConstPtrToInt(ConstantVal: &'a Value, ToType: &'a Type) -> &'a Value;
+    pub fn LLVMConstPtrToInt<'a>(ConstantVal: &'a Value, ToType: &'a Type) -> &'a Value;
     // pub fn LLVMConstIntToPtr(ConstantVal: &'a Value, ToType: &'a Type) -> &'a Value;
     // pub fn LLVMConstBitCast(ConstantVal: &'a Value, ToType: &'a Type) -> &'a Value;
     // pub fn LLVMConstPointerCast(ConstantVal: &'a Value, ToType: &'a Type) -> &'a Value;
@@ -669,7 +669,7 @@ extern "C" {
 
     // Operations on global variables
     pub fn LLVMIsAGlobalVariable(GlobalVar: &Value) -> Option<&Value>;
-    // pub fn LLVMAddGlobal(M: &'a Module, Ty: &'a Type, Name: *const c_char) -> &'a Value;
+    pub fn LLVMAddGlobal<'a>(M: &'a Module, Ty: &'a Type, Name: *const c_char) -> &'a Value;
     pub fn LLVMGetNamedGlobal(M: &Module, Name: *const c_char) -> Option<&Value>;
     // pub fn LLVMRustGetOrInsertGlobal(M: &'a Module, Name: *const c_char, T: &'a Type) -> &'a Value;
     // pub fn LLVMRustInsertPrivateGlobal(M: &'a Module, T: &'a Type) -> &'a Value;
@@ -686,11 +686,11 @@ extern "C" {
     pub fn LLVMSetTailCall(CallInst: &Value, IsTailCall: Bool);
 
     // Operations on functions
-    // pub fn LLVMRustGetOrInsertFunction(
-    //     M: &'a Module,
-    //     Name: *const c_char,
-    //     FunctionTy: &'a Type,
-    // ) -> &'a Value;
+    pub fn LLVMRustGetOrInsertFunction<'a>(
+        M: &'a Module,
+        Name: *const c_char,
+        FunctionTy: &'a Type,
+    ) -> &'a Value;
     pub fn LLVMSetFunctionCallConv(Fn: &Value, CC: c_uint);
     pub fn LLVMRustAddAlignmentAttr(Fn: &Value, index: c_uint, bytes: u32);
     pub fn LLVMRustAddDereferenceableAttr(Fn: &Value, index: c_uint, bytes: u64);
@@ -817,7 +817,8 @@ extern "C" {
     //     Name: *const c_char,
     // ) -> Option<&'a Value>;
     // pub fn LLVMRustAddHandler(CatchSwitch: &'a Value, Handler: &'a BasicBlock);
-    // pub fn LLVMSetPersonalityFn(Func: &'a Value, Pers: &'a Value);
+    pub fn LLVMSetPersonalityFn<'a>(Func: &'a Value, Pers: &'a Value);
+    pub fn LLVMRustSetFunctionPrefixData<'a>(Func: &'a Value, Pers: &'a Value);
 
     // // Add a case to the switch instruction
     // pub fn LLVMAddCase(Switch: &'a Value, OnVal: &'a Value, Dest: &'a BasicBlock);
@@ -1324,78 +1325,78 @@ extern "C" {
         Packed: Bool,
     );
 
-//     /// Prepares inline assembly.
-//     pub fn LLVMRustInlineAsm(
-//         Ty: &Type,
-//         AsmString: *const c_char,
-//         Constraints: *const c_char,
-//         SideEffects: Bool,
-//         AlignStack: Bool,
-//         Dialect: AsmDialect,
-//     ) -> &Value;
+    //     /// Prepares inline assembly.
+    //     pub fn LLVMRustInlineAsm(
+    //         Ty: &Type,
+    //         AsmString: *const c_char,
+    //         Constraints: *const c_char,
+    //         SideEffects: Bool,
+    //         AlignStack: Bool,
+    //         Dialect: AsmDialect,
+    //     ) -> &Value;
 
-//     pub fn LLVMRustDebugMetadataVersion() -> u32;
-//     pub fn LLVMRustVersionMajor() -> u32;
-//     pub fn LLVMRustVersionMinor() -> u32;
+    //     pub fn LLVMRustDebugMetadataVersion() -> u32;
+    //     pub fn LLVMRustVersionMajor() -> u32;
+    //     pub fn LLVMRustVersionMinor() -> u32;
 
-//     pub fn LLVMRustAddModuleFlag(M: &Module, name: *const c_char, value: u32);
+    //     pub fn LLVMRustAddModuleFlag(M: &Module, name: *const c_char, value: u32);
 
-//     pub fn LLVMRustMetadataAsValue(C: &'a Context, MD: &'a Metadata) -> &'a Value;
+    //     pub fn LLVMRustMetadataAsValue(C: &'a Context, MD: &'a Metadata) -> &'a Value;
 
-//     pub fn LLVMRustDIBuilderCreate(M: &'a Module) -> &'a mut DIBuilder<'a>;
+    //     pub fn LLVMRustDIBuilderCreate(M: &'a Module) -> &'a mut DIBuilder<'a>;
 
-//     pub fn LLVMRustDIBuilderDispose(Builder: &'a mut DIBuilder<'a>);
+    //     pub fn LLVMRustDIBuilderDispose(Builder: &'a mut DIBuilder<'a>);
 
-//     pub fn LLVMRustDIBuilderFinalize(Builder: &DIBuilder);
+    //     pub fn LLVMRustDIBuilderFinalize(Builder: &DIBuilder);
 
-//     pub fn LLVMRustDIBuilderCreateCompileUnit(
-//         Builder: &DIBuilder<'a>,
-//         Lang: c_uint,
-//         File: &'a DIFile,
-//         Producer: *const c_char,
-//         isOptimized: bool,
-//         Flags: *const c_char,
-//         RuntimeVer: c_uint,
-//         SplitName: *const c_char,
-//     ) -> &'a DIDescriptor;
+    //     pub fn LLVMRustDIBuilderCreateCompileUnit(
+    //         Builder: &DIBuilder<'a>,
+    //         Lang: c_uint,
+    //         File: &'a DIFile,
+    //         Producer: *const c_char,
+    //         isOptimized: bool,
+    //         Flags: *const c_char,
+    //         RuntimeVer: c_uint,
+    //         SplitName: *const c_char,
+    //     ) -> &'a DIDescriptor;
 
-//     pub fn LLVMRustDIBuilderCreateFile(
-//         Builder: &DIBuilder<'a>,
-//         Filename: *const c_char,
-//         Directory: *const c_char,
-//     ) -> &'a DIFile;
+    //     pub fn LLVMRustDIBuilderCreateFile(
+    //         Builder: &DIBuilder<'a>,
+    //         Filename: *const c_char,
+    //         Directory: *const c_char,
+    //     ) -> &'a DIFile;
 
-//     pub fn LLVMRustDIBuilderCreateSubroutineType(
-//         Builder: &DIBuilder<'a>,
-//         File: &'a DIFile,
-//         ParameterTypes: &'a DIArray,
-//     ) -> &'a DICompositeType;
+    //     pub fn LLVMRustDIBuilderCreateSubroutineType(
+    //         Builder: &DIBuilder<'a>,
+    //         File: &'a DIFile,
+    //         ParameterTypes: &'a DIArray,
+    //     ) -> &'a DICompositeType;
 
-//     pub fn LLVMRustDIBuilderCreateFunction(
-//         Builder: &DIBuilder<'a>,
-//         Scope: &'a DIDescriptor,
-//         Name: *const c_char,
-//         LinkageName: *const c_char,
-//         File: &'a DIFile,
-//         LineNo: c_uint,
-//         Ty: &'a DIType,
-//         isLocalToUnit: bool,
-//         isDefinition: bool,
-//         ScopeLine: c_uint,
-//         Flags: DIFlags,
-//         isOptimized: bool,
-//         Fn: &'a Value,
-//         TParam: &'a DIArray,
-//         Decl: Option<&'a DIDescriptor>,
-//     ) -> &'a DISubprogram;
+    //     pub fn LLVMRustDIBuilderCreateFunction(
+    //         Builder: &DIBuilder<'a>,
+    //         Scope: &'a DIDescriptor,
+    //         Name: *const c_char,
+    //         LinkageName: *const c_char,
+    //         File: &'a DIFile,
+    //         LineNo: c_uint,
+    //         Ty: &'a DIType,
+    //         isLocalToUnit: bool,
+    //         isDefinition: bool,
+    //         ScopeLine: c_uint,
+    //         Flags: DIFlags,
+    //         isOptimized: bool,
+    //         Fn: &'a Value,
+    //         TParam: &'a DIArray,
+    //         Decl: Option<&'a DIDescriptor>,
+    //     ) -> &'a DISubprogram;
 
-//     pub fn LLVMRustDIBuilderCreateBasicType(
-//         Builder: &DIBuilder<'a>,
-//         Name: *const c_char,
-//         SizeInBits: u64,
-//         AlignInBits: u32,
-//         Encoding: c_uint,
-//     ) -> &'a DIBasicType;
+    pub fn LLVMRustDIBuilderCreateBasicType<'a>(
+        Builder: &DIBuilder<'a>,
+        Name: *const c_char,
+        SizeInBits: u64,
+        AlignInBits: u32,
+        Encoding: c_uint,
+    ) -> &'a DIBasicType;
 
 //     pub fn LLVMRustDIBuilderCreatePointerType(
 //         Builder: &DIBuilder<'a>,

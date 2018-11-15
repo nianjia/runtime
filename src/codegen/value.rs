@@ -1,6 +1,6 @@
-pub use llvm::Value;
-
+use super::_type::Type;
 use llvm;
+pub use llvm::Value;
 
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -27,5 +27,11 @@ impl fmt::Debug for Value {
             })
             .expect("nun-UTF8 value description from LLVM"),
         )
+    }
+}
+
+impl Value {
+    pub fn get_ptr_to_int<'a>(&'a self, ty: &'a Type) -> &'a Value {
+        unsafe { llvm::LLVMConstPtrToInt(self, ty) }
     }
 }

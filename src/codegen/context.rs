@@ -1,7 +1,8 @@
 use super::_type::Type;
 use super::common;
 use llvm;
-use wasm::types::{ValueType, V128};
+use std::ffi::CString;
+use wasm::{types::V128, ValueType};
 
 lazy_static! {
     static ref IS_LLVM_INITIALIZED: bool = {
@@ -18,14 +19,14 @@ lazy_static! {
 
 pub struct Context<'a> {
     pub llctx: &'a llvm::Context,
-    i8_type: &'a llvm::Type,
+    pub i8_type: &'a llvm::Type,
     i16_type: &'a llvm::Type,
-    i32_type: &'a llvm::Type,
+    pub i32_type: &'a llvm::Type,
     i64_type: &'a llvm::Type,
     f32_type: &'a llvm::Type,
     f64_type: &'a llvm::Type,
     i8_ptr_type: &'a llvm::Type,
-    iptr_type: &'a llvm::Type,
+    pub iptr_type: &'a llvm::Type,
     i8x16_type: &'a llvm::Type,
     i16x8_type: &'a llvm::Type,
     i32x4_type: &'a llvm::Type,
@@ -36,6 +37,14 @@ pub struct Context<'a> {
     anyref_type: &'a llvm::Type,
     typed_zero_constants: [&'a llvm::Value; ValueType::LENGTH],
     value_types: [&'a llvm::Type; ValueType::LENGTH],
+}
+
+impl<'a> Drop for Context<'a> {
+    fn drop(&mut self) {
+        unsafe {
+            llvm::LLVMContextDispose(&self.llctx);
+        }
+    }
 }
 
 impl<'a> Context<'a> {
@@ -123,5 +132,14 @@ impl<'a> Context<'a> {
             typed_zero_constants,
             value_types,
         }
+    }
+
+    pub fn create_module(&self, mod_name: &str) -> &llvm::Module {
+        let mod_name = CString::new(mod_name).expect("CString::new() error!");
+        unsafe { llvm::LLVMModuleCreateWithNameInContext(mod_name.as_ptr(), self.llctx) }
+    }
+
+    pub fn get_basic_type(&self, ty: ValueType) -> &'a Type {
+        return self.value_types[ty as usize];
     }
 }

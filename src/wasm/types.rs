@@ -1,3 +1,5 @@
+use std::convert::From;
+
 pub enum ValueType {
     None = 0,
     Any = 1,
@@ -13,6 +15,18 @@ pub enum ValueType {
 
 impl ValueType {
     pub const LENGTH: usize = 10;
+}
+
+impl From<parity_wasm::elements::ValueType> for ValueType {
+    fn from(ty: parity_wasm::elements::ValueType) -> Self {
+        match ty {
+            parity_wasm::elements::ValueType::F32 => ValueType::F32,
+            parity_wasm::elements::ValueType::F64 => ValueType::F64,
+            parity_wasm::elements::ValueType::I32 => ValueType::I32,
+            parity_wasm::elements::ValueType::I64 => ValueType::I64,
+            parity_wasm::elements::ValueType::V128 => ValueType::V128,
+        }
+    }
 }
 
 #[repr(C, align(16))]

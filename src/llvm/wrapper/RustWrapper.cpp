@@ -280,6 +280,11 @@ extern "C" void LLVMRustAddFunctionAttribute(LLVMValueRef Fn, unsigned Index,
 #endif
 }
 
+extern "C" void LLVMRustSetFunctionPrefixData(LLVMValueRef Fn, LLVMValueRef PrefixData)
+{
+  unwrap<Function>(Fn)->setPrefixData(unwrap<Constant>(PrefixData));
+}
+
 extern "C" void LLVMRustAddAlignmentAttr(LLVMValueRef Fn,
                                          unsigned Index,
                                          uint32_t Bytes)

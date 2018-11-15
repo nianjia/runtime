@@ -1,6 +1,6 @@
 use libc::c_uint;
 pub use llvm::Type;
-use llvm::{self, Bool, Context};
+use llvm::{self, Bool, Context, False};
 use std::ffi::CString;
 
 impl Type {
@@ -66,5 +66,9 @@ impl Type {
 
     pub fn vector(&self, len: u64) -> &Type {
         unsafe { llvm::LLVMVectorType(self, len as c_uint) }
+    }
+
+    pub fn func<'ll>(args: &[&'ll Type], ret: &'ll Type) -> &'ll Type {
+        unsafe { llvm::LLVMFunctionType(ret, args.as_ptr(), args.len() as c_uint, False) }
     }
 }

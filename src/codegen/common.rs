@@ -43,6 +43,12 @@ pub fn const_vector<'ll>(elts: &[&'ll Value]) -> &'ll Value {
     unsafe { llvm::LLVMConstVector(elts.as_ptr(), elts.len() as c_uint) }
 }
 
+pub fn const_array<'ll>(ty: &'ll Type, elts: &[&'ll Value]) -> &'ll Value {
+    unsafe {
+        return llvm::LLVMConstArray(ty, elts.as_ptr(), elts.len() as c_uint);
+    }
+}
+
 pub fn const_v128<'ll>(ctx: &'ll Context, v: V128) -> &'ll Value {
     let [h, l] = v.into_u64x2();
     const_vector(&[const_u64(ctx, h), const_u64(ctx, l)])

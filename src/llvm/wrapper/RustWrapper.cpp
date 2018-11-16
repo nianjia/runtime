@@ -679,6 +679,11 @@ extern "C" LLVMValueRef LLVMRustMetadataAsValue(LLVMContextRef C, LLVMMetadataRe
   return wrap(MetadataAsValue::get(*unwrap(C), unwrap(MD)));
 }
 
+extern "C" LLVMMetadataRef LLVMRustConstantAsMetadata(LLVMValueRef C)
+{
+  return wrap(ConstantAsMetadata::get(unwrap<Constant>(C)));
+}
+
 extern "C" LLVMRustDIBuilderRef LLVMRustDIBuilderCreate(LLVMModuleRef M)
 {
   return new DIBuilder(*unwrap(M));
@@ -714,7 +719,6 @@ LLVMRustDIBuilderCreateFile(LLVMRustDIBuilderRef Builder, const char *Filename,
 
 extern "C" LLVMMetadataRef
 LLVMRustDIBuilderCreateSubroutineType(LLVMRustDIBuilderRef Builder,
-                                      LLVMMetadataRef File,
                                       LLVMMetadataRef ParameterTypes)
 {
   return wrap(Builder->createSubroutineType(
@@ -725,16 +729,12 @@ extern "C" LLVMMetadataRef LLVMRustDIBuilderCreateFunction(
     LLVMRustDIBuilderRef Builder, LLVMMetadataRef Scope, const char *Name,
     const char *LinkageName, LLVMMetadataRef File, unsigned LineNo,
     LLVMMetadataRef Ty, bool IsLocalToUnit, bool IsDefinition,
-    unsigned ScopeLine, LLVMRustDIFlags Flags, bool IsOptimized,
-    LLVMValueRef Fn, LLVMMetadataRef TParam, LLVMMetadataRef Decl)
+    unsigned ScopeLine, LLVMValueRef Fn)
 {
-  DITemplateParameterArray TParams =
-      DITemplateParameterArray(unwrap<MDTuple>(TParam));
   DISubprogram *Sub = Builder->createFunction(
       unwrapDI<DIScope>(Scope), Name, LinkageName, unwrapDI<DIFile>(File),
       LineNo, unwrapDI<DISubroutineType>(Ty), IsLocalToUnit, IsDefinition,
-      ScopeLine, fromRust(Flags), IsOptimized, TParams,
-      unwrapDIPtr<DISubprogram>(Decl));
+      ScopeLine);
   unwrap<Function>(Fn)->setSubprogram(Sub);
   return wrap(Sub);
 }
@@ -803,7 +803,13 @@ LLVMRustDIBuilderCreateLexicalBlockFile(LLVMRustDIBuilderRef Builder,
                                               unwrapDI<DIFile>(File)));
 }
 
-extern "C" LLVMMetadataRef LLVMRustDIBuilderCreateStaticVariable(
+extern "C" const char *LLVMRustValueGetName(LLVMValueRef V)
+{
+  return (unwrap<Value>(V)->getName()).data();
+}
+
+extern "C" LLVMMetadataRef
+LLVMRustDIBuilderCreateStaticVariable(
     LLVMRustDIBuilderRef Builder, LLVMMetadataRef Context, const char *Name,
     const char *LinkageName, LLVMMetadataRef File, unsigned LineNo,
     LLVMMetadataRef Ty, bool IsLocalToUnit, LLVMValueRef V,
@@ -1706,3 +1712,8 @@ extern "C" LLVMValueRef
   return nullptr;
 }
 #endif
+
+LLVMValueRef LLVMRustBuildPhi(LLVMBuilderRef B, LLVMTypeRef Ty, unsigned Num)
+{
+  return wrap(unwrap(B)->CreatePHI(unwrap(Ty), Num));
+}

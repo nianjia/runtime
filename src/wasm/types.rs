@@ -1,5 +1,6 @@
 use std::convert::From;
 
+#[derive(Copy, Clone)]
 pub enum ValueType {
     None = 0,
     Any = 1,

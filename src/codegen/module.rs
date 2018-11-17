@@ -1,17 +1,30 @@
-use super::{common, Context, Function, Type, Value};
-use llvm;
+use super::{common, debuginfo, ContextCodeGen, Function, Type, Value};
+use llvm::debuginfo::{DIBuilder, DIDescriptor};
 pub use llvm::Module;
+use llvm::{self, Metadata};
 use std::ffi::CString;
 use std::rc::Rc;
-use wasm;
+use wasm::{self, ValueType};
 
-struct ModuleCodeGen<'a> {
+pub(super) struct ModuleCodeGen<'a> {
     llmod: &'a Module,
     type_ids: Vec<&'a Value>,
     table_offsets: Vec<&'a Value>,
     memory_offsets: Vec<&'a Value>,
     globals: Vec<&'a Value>,
+    exception_type_ids: Vec<&'a Value>,
     functions: Vec<&'a Function>,
+    pub dibuilder: &'a DIBuilder<'a>,
+    default_table_offset: Option<&'a Value>,
+    default_memory_offset: Option<&'a Value>,
+    di_value_types: [Option<&'a Metadata>; ValueType::LENGTH],
+    pub di_module_scope: &'a DIDescriptor,
+}
+
+impl<'a> ModuleCodeGen<'a> {
+    pub fn get_di_value_type(&self, ty: ValueType) -> Option<&'a Metadata> {
+        self.di_value_types[ty as usize]
+    }
 }
 
 impl Module {
@@ -23,9 +36,16 @@ impl Module {
     pub fn add_function<'a>(&'a self, name: &str, ty: &'a Type) -> &'a Function {
         Function::new(self, name, None, ty)
     }
+
+    pub fn create_dibuilder<'a>(&'a self) -> &'a mut DIBuilder<'a> {
+        unsafe { llvm::LLVMRustDIBuilderCreate(self) }
+    }
 }
 
-fn get_function_type<'a>(ctx: &Context<'a>, wasm_func_type: &wasm::FunctionType) -> &'a Type {
+fn get_function_type<'a>(
+    ctx: &ContextCodeGen<'a>,
+    wasm_func_type: &wasm::FunctionType,
+) -> &'a Type {
     let param_tys = wasm_func_type
         .params()
         .iter()
@@ -38,7 +58,10 @@ fn get_function_type<'a>(ctx: &Context<'a>, wasm_func_type: &wasm::FunctionType)
     Type::func(&param_tys[..], ret_ty)
 }
 
-fn module_codegen<'a>(wasm_module: &wasm::Module, ctx: &'a Context<'a>) -> ModuleCodeGen<'a> {
+fn module_codegen<'a>(
+    wasm_module: &wasm::Module,
+    ctx: &'a ContextCodeGen<'a>,
+) -> ModuleCodeGen<'a> {
     let llmod = ctx.create_module("");
     let personality_func =
         llmod.add_function("__gxx_personality_v0", Type::func(&[], ctx.i32_type));
@@ -139,6 +162,24 @@ fn module_codegen<'a>(wasm_module: &wasm::Module, ctx: &'a Context<'a>) -> Modul
         }
     };
 
+    let dibuilder = llmod.create_dibuilder();
+    let di_value_types = [
+        None,
+        None,
+        Some(dibuilder.create_basic_type("i32", 32, None, debuginfo::DwAteEncodeType::Signed)),
+        Some(dibuilder.create_basic_type("i64", 64, None, debuginfo::DwAteEncodeType::Signed)),
+        Some(dibuilder.create_basic_type("f32", 32, None, debuginfo::DwAteEncodeType::Float)),
+        Some(dibuilder.create_basic_type("f64", 64, None, debuginfo::DwAteEncodeType::Signed)),
+        Some(dibuilder.create_basic_type("v128", 128, None, debuginfo::DwAteEncodeType::Signed)),
+        Some(dibuilder.create_basic_type("anyref", 8, None, debuginfo::DwAteEncodeType::Address)),
+        Some(dibuilder.create_basic_type("anyfunc", 8, None, debuginfo::DwAteEncodeType::Address)),
+        Some(dibuilder.create_basic_type("nullref", 8, None, debuginfo::DwAteEncodeType::Address)),
+    ];
+
+    let md_zero = common::const_to_metadata(common::const_int(ctx.i32_type, 0));
+    let md_i32max =
+        common::const_to_metadata(common::const_int(ctx.i32_type, std::i32::MAX as i64));
+
     ModuleCodeGen {
         llmod,
         type_ids,
@@ -146,5 +187,11 @@ fn module_codegen<'a>(wasm_module: &wasm::Module, ctx: &'a Context<'a>) -> Modul
         memory_offsets,
         globals,
         functions,
+        dibuilder,
+        default_memory_offset: None,
+        default_table_offset: None,
+        exception_type_ids: Vec::new(),
+        di_value_types,
+        di_module_scope: dibuilder.create_file("unknown", "unknown"),
     }
 }

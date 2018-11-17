@@ -1,6 +1,6 @@
-use super::_type::Type;
 use super::common;
-use llvm;
+use super::{_type::Type, function::Function};
+use llvm::{self, BasicBlock, Builder};
 use std::ffi::CString;
 use wasm::{types::V128, ValueType};
 
@@ -17,7 +17,7 @@ lazy_static! {
     };
 }
 
-pub struct Context<'a> {
+pub(super) struct ContextCodeGen<'a> {
     pub llctx: &'a llvm::Context,
     pub i8_type: &'a llvm::Type,
     i16_type: &'a llvm::Type,
@@ -25,7 +25,7 @@ pub struct Context<'a> {
     i64_type: &'a llvm::Type,
     f32_type: &'a llvm::Type,
     f64_type: &'a llvm::Type,
-    i8_ptr_type: &'a llvm::Type,
+    pub i8_ptr_type: &'a llvm::Type,
     pub iptr_type: &'a llvm::Type,
     i8x16_type: &'a llvm::Type,
     i16x8_type: &'a llvm::Type,
@@ -39,7 +39,7 @@ pub struct Context<'a> {
     value_types: [&'a llvm::Type; ValueType::LENGTH],
 }
 
-impl<'a> Drop for Context<'a> {
+impl<'a> Drop for ContextCodeGen<'a> {
     fn drop(&mut self) {
         unsafe {
             llvm::LLVMContextDispose(&self.llctx);
@@ -47,8 +47,8 @@ impl<'a> Drop for Context<'a> {
     }
 }
 
-impl<'a> Context<'a> {
-    pub fn new() -> Context<'a> {
+impl<'a> ContextCodeGen<'a> {
+    pub fn new() -> ContextCodeGen<'a> {
         assert!(*IS_LLVM_INITIALIZED);
         let llctx = unsafe { llvm::LLVMRustContextCreate(false) };
 
@@ -134,12 +134,22 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn create_module(&self, mod_name: &str) -> &llvm::Module {
+    pub fn create_module(&self, mod_name: &str) -> &'a llvm::Module {
         let mod_name = CString::new(mod_name).expect("CString::new() error!");
         unsafe { llvm::LLVMModuleCreateWithNameInContext(mod_name.as_ptr(), self.llctx) }
     }
 
     pub fn get_basic_type(&self, ty: ValueType) -> &'a Type {
         return self.value_types[ty as usize];
+    }
+
+    // Append a basic block to the end of a function.
+    pub fn create_basic_block(&self, name: &str, func: &'a Function) -> &'a BasicBlock {
+        let c_name = CString::new(name).unwrap();
+        unsafe { llvm::LLVMAppendBasicBlockInContext(self.llctx, func, c_name.as_ptr()) }
+    }
+
+    pub fn create_builder(&self) -> &'a mut Builder {
+        unsafe { llvm::LLVMCreateBuilderInContext(self.llctx) }
     }
 }

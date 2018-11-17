@@ -1,7 +1,7 @@
 use super::_type::Type;
 use super::value::Value;
 use libc::c_uint;
-use llvm::{self, Context, False, True};
+use llvm::{self, Context, False, Metadata, True};
 use wasm::types::V128;
 
 // LLVM constant constructors.
@@ -44,9 +44,11 @@ pub fn const_vector<'ll>(elts: &[&'ll Value]) -> &'ll Value {
 }
 
 pub fn const_array<'ll>(ty: &'ll Type, elts: &[&'ll Value]) -> &'ll Value {
-    unsafe {
-        return llvm::LLVMConstArray(ty, elts.as_ptr(), elts.len() as c_uint);
-    }
+    unsafe { llvm::LLVMConstArray(ty, elts.as_ptr(), elts.len() as c_uint) }
+}
+
+pub fn const_to_metadata<'a>(value: &'a Value) -> &'a Metadata {
+    unsafe { llvm::LLVMRustConstantAsMetadata(value) }
 }
 
 pub fn const_v128<'ll>(ctx: &'ll Context, v: V128) -> &'ll Value {

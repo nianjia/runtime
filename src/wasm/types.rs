@@ -1,3 +1,4 @@
+use super::BlockType;
 use std::convert::From;
 
 #[derive(Copy, Clone)]
@@ -26,6 +27,15 @@ impl From<parity_wasm::elements::ValueType> for ValueType {
             parity_wasm::elements::ValueType::I32 => ValueType::I32,
             parity_wasm::elements::ValueType::I64 => ValueType::I64,
             parity_wasm::elements::ValueType::V128 => ValueType::V128,
+        }
+    }
+}
+
+impl From<BlockType> for ValueType {
+    fn from(ty: BlockType) -> Self {
+        match ty {
+            BlockType::Value(v) => ValueType::from(v),
+            BlockType::NoResult => ValueType::None,
         }
     }
 }

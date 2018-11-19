@@ -722,6 +722,8 @@ extern "C" {
     // Operations on instructions
     pub fn LLVMGetFirstBasicBlock(Fn: &Value) -> &BasicBlock;
 
+    pub fn LLVMMoveBasicBlockAfter(BB: &BasicBlock, MovePos: &BasicBlock);
+
     // Operations on call sites
     pub fn LLVMSetInstructionCallConv(Instr: &Value, CC: c_uint);
     pub fn LLVMRustAddCallSiteAttribute(Instr: &Value, index: c_uint, attr: Attribute);
@@ -733,12 +735,14 @@ extern "C" {
     pub fn LLVMSetVolatile(MemoryAccessInst: &Value, volatile: Bool);
 
     // Operations on phi nodes
-    // pub fn LLVMAddIncoming(
-    //     PhiNode: &'a Value,
-    //     IncomingValues: *const &'a Value,
-    //     IncomingBlocks: *const &'a BasicBlock,
-    //     Count: c_uint,
-    // );
+    pub fn LLVMAddIncoming<'a>(
+        PhiNode: &'a Value,
+        IncomingValues: *const &'a Value,
+        IncomingBlocks: *const &'a BasicBlock,
+        Count: c_uint,
+    );
+
+    pub fn LLVMCountIncoming<'a>(PhiNode: &'a Value) -> c_uint;
 
     // Instruction builders
     pub fn LLVMCreateBuilderInContext<'a>(C: &'a Context) -> &'a mut Builder<'a>;
@@ -754,13 +758,13 @@ extern "C" {
     // Terminators
     // pub fn LLVMBuildRetVoid(B: &Builder<'a>) -> &'a Value;
     // pub fn LLVMBuildRet(B: &Builder<'a>, V: &'a Value) -> &'a Value;
-    // pub fn LLVMBuildBr(B: &Builder<'a>, Dest: &'a BasicBlock) -> &'a Value;
-    // pub fn LLVMBuildCondBr(
-    //     B: &Builder<'a>,
-    //     If: &'a Value,
-    //     Then: &'a BasicBlock,
-    //     Else: &'a BasicBlock,
-    // ) -> &'a Value;
+    pub fn LLVMBuildBr<'a>(B: &Builder<'a>, Dest: &'a BasicBlock) -> &'a Value;
+    pub fn LLVMBuildCondBr<'a>(
+        B: &Builder<'a>,
+        If: &'a Value,
+        Then: &'a BasicBlock,
+        Else: &'a BasicBlock,
+    ) -> &'a Value;
     // pub fn LLVMBuildSwitch(
     //     B: &Builder<'a>,
     //     V: &'a Value,
@@ -1061,12 +1065,12 @@ extern "C" {
     //         DestTy: &'a Type,
     //         Name: *const c_char,
     //     ) -> &'a Value;
-    //     pub fn LLVMBuildBitCast(
-    //         B: &Builder<'a>,
-    //         Val: &'a Value,
-    //         DestTy: &'a Type,
-    //         Name: *const c_char,
-    //     ) -> &'a Value;
+    pub fn LLVMBuildBitCast<'a>(
+        B: &Builder<'a>,
+        Val: &'a Value,
+        DestTy: &'a Type,
+        Name: *const c_char,
+    ) -> &'a Value;
     //     pub fn LLVMBuildPointerCast(
     //         B: &Builder<'a>,
     //         Val: &'a Value,
@@ -1080,23 +1084,23 @@ extern "C" {
     //         IsSized: bool,
     //     ) -> &'a Value;
 
-    //     // Comparisons
-    //     pub fn LLVMBuildICmp(
-    //         B: &Builder<'a>,
-    //         Op: c_uint,
-    //         LHS: &'a Value,
-    //         RHS: &'a Value,
-    //         Name: *const c_char,
-    //     ) -> &'a Value;
-    //     pub fn LLVMBuildFCmp(
-    //         B: &Builder<'a>,
-    //         Op: c_uint,
-    //         LHS: &'a Value,
-    //         RHS: &'a Value,
-    //         Name: *const c_char,
-    //     ) -> &'a Value;
+    // Comparisons
+    pub fn LLVMBuildICmp<'a>(
+        B: &Builder<'a>,
+        Op: c_uint,
+        LHS: &'a Value,
+        RHS: &'a Value,
+        Name: *const c_char,
+    ) -> &'a Value;
+    pub fn LLVMBuildFCmp<'a>(
+        B: &Builder<'a>,
+        Op: c_uint,
+        LHS: &'a Value,
+        RHS: &'a Value,
+        Name: *const c_char,
+    ) -> &'a Value;
 
-    //     // Miscellaneous instructions
+    // Miscellaneous instructions
     pub fn LLVMRustBuildPhi<'a>(B: &Builder<'a>, Ty: &'a Type, Num: c_uint) -> &'a Value;
     //     pub fn LLVMRustBuildCall(
     //         B: &Builder<'a>,

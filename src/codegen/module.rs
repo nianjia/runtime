@@ -53,7 +53,7 @@ fn get_function_type<'a>(
         .collect::<Vec<_>>();
     let ret_ty = match wasm_func_type.return_type() {
         Some(t) => ctx.get_basic_type(wasm::ValueType::from(t)),
-        None => Type::void(ctx.llctx),
+        None => Type::void(ctx.ll_ctx),
     };
     Type::func(&param_tys[..], ret_ty)
 }

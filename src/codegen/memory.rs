@@ -1,0 +1,1 @@
+fn memory_init()

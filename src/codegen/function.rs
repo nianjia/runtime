@@ -1,12 +1,15 @@
-use super::{context::ContextCodeGen, module::ModuleCodeGen, CodeGen, Value};
+use super::{
+    context::ContextCodeGen, module::ModuleCodeGen, CodeGen, ContorlContextType, ControlContext,
+    PHINode, Value,
+};
 use libc::c_uint;
 pub use llvm::Value as Function;
-use llvm::{self, BasicBlock, Builder, Module, Type};
+use llvm::{self, BasicBlock, Module, Type};
 use std::ffi::{CStr, CString};
 use std::rc::Rc;
 use wasm::{FunctionType, ValueType};
 
-type PHINode = Value;
+pub use llvm::Builder;
 
 impl<'a> Builder<'a> {
     pub fn get_insert_block(&self) -> Option<&'a BasicBlock> {
@@ -30,57 +33,30 @@ impl<'a> Builder<'a> {
     pub fn create_store(&self, val: &'a Value, ptr: &'a Value) -> &'a Value {
         unsafe { llvm::LLVMBuildStore(self, val, ptr) }
     }
-}
 
-enum ContorlContextType {
-    Function,
-    Block,
-    IfThen,
-    IfElse,
-    Loop,
-    Try,
-    Catch,
-}
-
-struct ControlContext<'a> {
-    ty: ContorlContextType,
-    end_block: &'a BasicBlock,
-    end_PHIs: Rc<Vec<&'a PHINode>>,
-    else_block: Option<&'a BasicBlock>,
-    else_args: Vec<&'a Value>,
-    ret_types: Vec<ValueType>,
-    outer_stack_size: usize,
-    outer_branch_target_stack_size: usize,
-    is_reachable: bool,
-}
-
-struct BranchTarget<'a> {
-    param_types: Vec<ValueType>,
-    block: &'a BasicBlock,
-    PHIs: Rc<Vec<&'a PHINode>>,
-}
-
-impl<'a> ControlContext<'a> {
-    pub fn new(
-        ty: ContorlContextType,
-        ret_types: Vec<ValueType>,
-        end_block: &'a BasicBlock,
-        end_PHIs: Rc<Vec<&'a PHINode>>,
-        stack_size: usize,
-        branch_target_stack_size: usize,
-    ) -> Self {
-        Self {
-            ty,
-            end_block,
-            end_PHIs,
-            else_block: None,
-            else_args: Vec::new(),
-            ret_types,
-            outer_stack_size: stack_size,
-            outer_branch_target_stack_size: branch_target_stack_size,
-            is_reachable: true,
-        }
+    pub fn create_br_instr(&self, block: &'a BasicBlock) -> &'a Value {
+        unsafe { llvm::LLVMBuildBr(self, block) }
     }
+
+    pub fn create_cond_br_instr(
+        &self,
+        if_: &'a Value,
+        then: &'a BasicBlock,
+        else_: &'a BasicBlock,
+    ) -> &'a Value {
+        unsafe { llvm::LLVMBuildCondBr(self, if_, then, else_) }
+    }
+
+    pub fn create_bit_cast(&self, v: &'a Value, ty: &'a Type) -> &'a Value {
+        let c_name = CString::new("").unwrap();
+        unsafe { llvm::LLVMBuildBitCast(self, v, ty, c_name.as_ptr()) }
+    }
+}
+
+pub struct BranchTarget<'a> {
+    // pub(in codegen) param_types: Vec<ValueType>,
+    pub(in codegen) block: &'a BasicBlock,
+    pub(in codegen) type_PHIs: Vec<(ValueType, &'a PHINode)>,
 }
 
 impl Function {
@@ -130,15 +106,15 @@ impl Function {
     }
 }
 
-struct FunctionCodeGen<'a> {
-    func: &'a Function,
+pub struct FunctionCodeGen<'a> {
+    pub(in codegen) ll_func: &'a Function,
     func_ty: FunctionType,
     module: Rc<ModuleCodeGen<'a>>,
-    ctx: Rc<ContextCodeGen<'a>>,
-    builder: &'a Builder<'a>,
-    control_stack: Vec<ControlContext<'a>>,
-    branch_target_stack: Vec<BranchTarget<'a>>,
-    stack: Vec<&'a Value>,
+    pub(in codegen) ctx: Rc<ContextCodeGen<'a>>,
+    pub(in codegen) builder: &'a Builder<'a>,
+    pub(in codegen) control_stack: Vec<ControlContext<'a>>,
+    pub(in codegen) branch_target_stack: Vec<BranchTarget<'a>>,
+    pub(in codegen) stack: Vec<&'a Value>,
     memory_base_ptr: &'a Value,
     ctx_ptr: &'a Value,
 }
@@ -174,48 +150,72 @@ impl<'a> FunctionCodeGen<'a> {
 
         let di_func = self.module.dibuilder.create_function(
             self.module.di_module_scope,
-            self.func.name(),
+            self.ll_func.name(),
             di_func_type,
-            self.func,
+            self.ll_func,
         );
 
         self.create_ret_block();
         self.create_entry_block();
 
-        let params = self.func.params();
+        let params = self.ll_func.params();
 
         self.init_context_variable(params[0]);
     }
 
+    pub fn get_value_from_stack(&self, idx: usize) -> &'a Value {
+        self.stack[self.stack.len() - 1 - idx]
+    }
+
+    #[inline]
+    pub(in codegen) fn pop(&mut self) -> &'a Value {
+        assert!(
+            self.stack.len()
+                - self
+                    .control_stack
+                    .last()
+                    .map(|t| t.outer_stack_size)
+                    .unwrap_or(0)
+                >= 1
+        );
+        self.stack.pop().unwrap()
+    }
+
+    #[inline]
+    pub(in codegen) fn push(&mut self, v: &'a Value) {
+        self.stack.push(v);
+    }
+
     fn create_entry_block(&self) {
-        let entry_block = self.ctx.create_basic_block("entry", self.func);
+        let entry_block = self.ctx.create_basic_block("entry", self.ll_func);
         self.builder.set_insert_block(entry_block);
     }
 
     fn create_ret_block(&mut self) {
-        let ret_block = self.ctx.create_basic_block("return", self.func);
+        let ret_block = self.ctx.create_basic_block("return", self.ll_func);
         let ret_ty = self
             .func_ty
             .return_type()
             .map(ValueType::from)
             .unwrap_or(ValueType::None);
-        let PHIs = Rc::new(self.create_PHIs(ret_block, &[ret_ty]));
+        let PHIs = self.create_PHIs(ret_block, &[ret_ty]);
         self.control_stack.push(ControlContext::new(
             ContorlContextType::Function,
             vec![ret_ty],
             ret_block,
             PHIs.clone(),
+            None,
             self.stack.len(),
             self.branch_target_stack.len(),
         ));
         self.branch_target_stack.push(BranchTarget {
-            param_types: vec![ret_ty],
+            // param_types: vec![ret_ty],
             block: ret_block,
-            PHIs: PHIs.clone(),
+            type_PHIs: vec![(ret_ty, PHIs.first().unwrap())],
         })
     }
 
-    fn create_PHIs(&self, block: &'a BasicBlock, types: &[ValueType]) -> Vec<&'a PHINode> {
+    pub fn create_PHIs(&self, block: &'a BasicBlock, types: &[ValueType]) -> Vec<&'a PHINode> {
         let origin_block = self.builder.get_insert_block();
         self.builder.set_insert_block(block);
         let ret = types
@@ -226,5 +226,40 @@ impl<'a> FunctionCodeGen<'a> {
             self.builder.set_insert_block(block);
         }
         ret
+    }
+
+    pub fn branch_to_end_of_control_context(&mut self) {
+        let (end_block, PHIs) = {
+            let cur_ctx = self.control_stack.last().unwrap();
+
+            if cur_ctx.is_reachable() {
+                (cur_ctx.end_block, cur_ctx.end_PHIs.clone())
+            } else {
+                return;
+            }
+        };
+
+        PHIs.into_iter().for_each(|t| {
+            let res = self.stack.pop().unwrap();
+            t.add_incoming(
+                self.ctx.coerce_to_canonical_type(self.builder, res),
+                // TODO: handle the None value of insert block
+                self.builder.get_insert_block().unwrap(),
+            );
+        });
+
+        self.builder.create_br_instr(end_block);
+    }
+
+    pub fn get_branch_target(&self, depth: u32) -> &BranchTarget<'a> {
+        &self.branch_target_stack[self.branch_target_stack.len() - depth as usize - 1]
+    }
+
+    pub fn enter_unreachable(&mut self) {
+        let cur_ctx = self.control_stack.last_mut().unwrap();
+        assert!(cur_ctx.outer_stack_size <= self.stack.len());
+
+        self.stack.truncate(cur_ctx.outer_stack_size);
+        cur_ctx.is_reachable = false;
     }
 }

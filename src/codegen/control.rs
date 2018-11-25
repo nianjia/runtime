@@ -1,7 +1,7 @@
 use super::function::BranchTarget;
 use super::{ContorlContextType, ControlContext, FunctionCodeGen};
 use std::rc::Rc;
-use wasm::{BlockType, ValueType};
+use wasm::{BlockType, FunctionType, ValueType};
 
 trait ControlInstrEmit {
     declare_control_instrs!();
@@ -182,31 +182,49 @@ impl<'a> ControlInstrEmit for FunctionCodeGen<'a> {
     }
 
     fn return_(&mut self) {
-        // let ret_ty = self
-        //     .func_ty
-        //     .return_type()
-        //     .map(ValueType::from)
-        //     .unwrap_or(ValueType::None);
+        match self.func_ty.return_type() {
+            Some(_) => {
+                let v = self.pop();
+                let cur_ctx = self.control_stack.first().unwrap();
+                cur_ctx.end_PHIs[0].add_incoming(
+                    self.ctx.coerce_to_canonical_type(self.builder, v),
+                    self.builder.get_insert_block().unwrap(),
+                );
+            }
+            None => {}
+        }
 
-        // (0..len).for_each(|t| {
-        //     let res = self.pop();
-        //     let (ty, PHI) = self.get_branch_target(depth).type_PHIs[t];
-        //     PHI.add_incoming(
-        //         self.ctx.coerce_to_canonical_type(self.builder, res),
-        //         self.builder.get_insert_block().unwrap(),
-        //     )
-        // });
-
-        // self.builder
-        //     .create_br_instr(self.control_stack.first().unwrap().end_block);
-        // self.enter_unreachable();
+        self.builder
+            .create_br_instr(self.control_stack.first().unwrap().end_block);
+        self.enter_unreachable();
     }
+
     fn br_table(&mut self, depth: u32) {}
-    fn call(&mut self, depth: u32) {}
-    fn unreachable(&mut self) {}
-    fn call_indirect(&mut self, depth: u32) {}
+
+    fn call(&mut self, index: u32) {}
+
+    fn unreachable(&mut self) {
+        self.emit_runtime_intrinsic("unreachableTrap", FunctionType::default(), Vec::new());
+        self.builder.create_unreachable();
+        self.enter_unreachable();
+    }
+
+    fn call_indirect(&mut self, ty_index: u32, table_index: u8) {}
+
     fn nop(&mut self) {}
 
-    fn drop(&mut self) {}
-    fn select(&mut self) {}
+    fn drop(&mut self) {
+        self.pop();
+    }
+
+    fn select(&mut self) {
+        let cond = self.pop();
+        let cond_bool = self.ctx.coerce_i32_to_bool(self.builder, cond);
+        let false_value = self.pop();
+        let true_value = self.pop();
+        self.push(
+            self.builder
+                .create_select(cond_bool, true_value, false_value),
+        );
+    }
 }

@@ -789,7 +789,7 @@ extern "C" {
     //     Name: *const c_char,
     // ) -> &'a Value;
     // pub fn LLVMBuildResume(B: &Builder<'a>, Exn: &'a Value) -> &'a Value;
-    // pub fn LLVMBuildUnreachable(B: &Builder<'a>) -> &'a Value;
+    pub fn LLVMBuildUnreachable<'a>(B: &Builder<'a>) -> &'a Value;
 
     // pub fn LLVMRustBuildCleanupPad(
     //     B: &Builder<'a>,
@@ -1110,13 +1110,13 @@ extern "C" {
     //         Bundle: Option<&OperandBundleDef<'a>>,
     //         Name: *const c_char,
     //     ) -> &'a Value;
-    //     pub fn LLVMBuildSelect(
-    //         B: &Builder<'a>,
-    //         If: &'a Value,
-    //         Then: &'a Value,
-    //         Else: &'a Value,
-    //         Name: *const c_char,
-    //     ) -> &'a Value;
+    pub fn LLVMBuildSelect<'a>(
+        B: &Builder<'a>,
+        If: &'a Value,
+        Then: &'a Value,
+        Else: &'a Value,
+        Name: *const c_char,
+    ) -> &'a Value;
     //     pub fn LLVMBuildVAArg(
     //         B: &Builder<'a>,
     //         list: &'a Value,

@@ -20,7 +20,7 @@ macro_rules! declare_control_instrs {
         declare_instr!(BrTable, br_table, u32);
         declare_instr!(Call, call, u32);
         declare_instr!(Unreachable, unreachable);
-        declare_instr!(CallIndirect, call_indirect, u32);
+        declare_instr!(CallIndirect, call_indirect, u32, u8);
         declare_instr!(Nop, nop);
         declare_instr!(Drop, drop);
         declare_instr!(Select, select);

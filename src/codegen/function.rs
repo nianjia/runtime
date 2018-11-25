@@ -51,6 +51,15 @@ impl<'a> Builder<'a> {
         let c_name = CString::new("").unwrap();
         unsafe { llvm::LLVMBuildBitCast(self, v, ty, c_name.as_ptr()) }
     }
+
+    pub fn create_select(&self, if_: &'a Value, then: &'a Value, else_: &'a Value) -> &'a Value {
+        let c_name = CString::new("").unwrap();
+        unsafe { llvm::LLVMBuildSelect(self, if_, then, else_, c_name.as_ptr()) }
+    }
+
+    pub fn create_unreachable(&self) -> &'a Value {
+        unsafe { llvm::LLVMBuildUnreachable(self) }
+    }
 }
 
 pub struct BranchTarget<'a> {
@@ -108,7 +117,7 @@ impl Function {
 
 pub struct FunctionCodeGen<'a> {
     pub(in codegen) ll_func: &'a Function,
-    func_ty: FunctionType,
+    pub(in codegen) func_ty: FunctionType,
     module: Rc<ModuleCodeGen<'a>>,
     pub(in codegen) ctx: Rc<ContextCodeGen<'a>>,
     pub(in codegen) builder: &'a Builder<'a>,
@@ -261,5 +270,14 @@ impl<'a> FunctionCodeGen<'a> {
 
         self.stack.truncate(cur_ctx.outer_stack_size);
         cur_ctx.is_reachable = false;
+    }
+
+    pub fn emit_runtime_intrinsic(
+        &self,
+        name: &str,
+        ty: FunctionType,
+        args: Vec<&'a Value>,
+    ) -> Vec<&'a Value> {
+        unimplemented!()
     }
 }

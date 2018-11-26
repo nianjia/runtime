@@ -2,7 +2,7 @@ use super::common;
 use super::{_type::Type, function::Builder, function::Function};
 use llvm::{self, BasicBlock, Value};
 use std::ffi::CString;
-use wasm::{types::V128, Module, ValueType};
+use wasm::{self, types::V128, Module, ValueType};
 
 lazy_static! {
     static ref IS_LLVM_INITIALIZED: bool = {
@@ -37,7 +37,6 @@ pub struct ContextCodeGen<'a> {
     anyref_type: &'a llvm::Type,
     typed_zero_constants: [&'a llvm::Value; ValueType::LENGTH],
     value_types: [&'a llvm::Type; ValueType::LENGTH],
-    pub wasm_mod: wasm,
 }
 
 impl<'a> Drop for ContextCodeGen<'a> {

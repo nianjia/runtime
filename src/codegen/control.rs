@@ -1,7 +1,8 @@
+use super::common;
 use super::function::BranchTarget;
 use super::{ContorlContextType, ControlContext, FunctionCodeGen};
 use std::rc::Rc;
-use wasm::{BlockType, FunctionType, ValueType};
+use wasm::{BlockType, BrTableData, FunctionType, ValueType};
 
 trait ControlInstrEmit {
     declare_control_instrs!();
@@ -199,7 +200,42 @@ impl<'a> ControlInstrEmit for FunctionCodeGen<'a> {
         self.enter_unreachable();
     }
 
-    fn br_table(&mut self, depth: u32) {}
+    fn br_table(&mut self, data: BrTableData) {
+        let idx = self.pop();
+        let num_args = self.get_branch_target(data.default).type_PHIs.len();
+        let args = (0..num_args).map(|_| self.pop()).rev().collect::<Vec<_>>();
+
+        let ll_switch = {
+            let default_target = self.get_branch_target(data.default);
+
+            args.iter().enumerate().for_each(|(t, v)| {
+                default_target.type_PHIs[t].1.add_incoming(
+                    self.ctx.coerce_to_canonical_type(self.builder, *v),
+                    self.builder.get_insert_block().unwrap(),
+                );
+            });
+
+            self.builder
+                .create_switch(idx, default_target.block, data.table.len())
+        };
+
+        data.table.iter().enumerate().for_each(|(i, item)| {
+            let target = self.get_branch_target(*item);
+            assert!(i < std::u32::MAX as usize);
+
+            ll_switch.add_case(common::const_u32(self.ctx.ll_ctx, i as u32), target.block);
+
+            assert!(target.type_PHIs.len() == num_args);
+            args.iter().enumerate().for_each(|(t, v)| {
+                target.type_PHIs[t].1.add_incoming(
+                    self.ctx.coerce_to_canonical_type(self.builder, *v),
+                    self.builder.get_insert_block().unwrap(),
+                );
+            });
+        });
+
+        self.enter_unreachable();
+    }
 
     fn call(&mut self, index: u32) {}
 

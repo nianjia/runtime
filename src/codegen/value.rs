@@ -1,3 +1,4 @@
+use super::BasicBlock;
 use super::_type::Type;
 use llvm;
 pub use llvm::Value;
@@ -33,5 +34,13 @@ impl fmt::Debug for Value {
 impl Value {
     pub fn get_ptr_to_int<'a>(&'a self, ty: &'a Type) -> &'a Value {
         unsafe { llvm::LLVMConstPtrToInt(self, ty) }
+    }
+}
+
+pub type SwitchInst = llvm::Value;
+
+impl SwitchInst {
+    pub fn add_case<'a>(&self, on_val: &'a Value, dest: &'a BasicBlock) {
+        unsafe { llvm::LLVMAddCase(self, on_val, dest) }
     }
 }

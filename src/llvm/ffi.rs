@@ -765,12 +765,12 @@ extern "C" {
         Then: &'a BasicBlock,
         Else: &'a BasicBlock,
     ) -> &'a Value;
-    // pub fn LLVMBuildSwitch(
-    //     B: &Builder<'a>,
-    //     V: &'a Value,
-    //     Else: &'a BasicBlock,
-    //     NumCases: c_uint,
-    // ) -> &'a Value;
+    pub fn LLVMBuildSwitch<'a>(
+        B: &Builder<'a>,
+        V: &'a Value,
+        Else: &'a BasicBlock,
+        NumCases: c_uint,
+    ) -> &'a Value;
     // pub fn LLVMRustBuildInvoke(
     //     B: &Builder<'a>,
     //     Fn: &'a Value,
@@ -826,8 +826,8 @@ extern "C" {
     pub fn LLVMSetPersonalityFn<'a>(Func: &'a Value, Pers: &'a Value);
     pub fn LLVMRustSetFunctionPrefixData<'a>(Func: &'a Value, Pers: &'a Value);
 
-    // // Add a case to the switch instruction
-    // pub fn LLVMAddCase(Switch: &'a Value, OnVal: &'a Value, Dest: &'a BasicBlock);
+    // Add a case to the switch instruction
+    pub fn LLVMAddCase<'a>(Switch: &'a Value, OnVal: &'a Value, Dest: &'a BasicBlock);
 
     // // Add a clause to the landing pad instruction
     // pub fn LLVMAddClause(LandingPad: &'a Value, ClauseVal: &'a Value);

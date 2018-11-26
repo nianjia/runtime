@@ -60,6 +60,15 @@ impl<'a> Builder<'a> {
     pub fn create_unreachable(&self) -> &'a Value {
         unsafe { llvm::LLVMBuildUnreachable(self) }
     }
+
+    pub fn create_switch(
+        &self,
+        v: &'a Value,
+        else_: &'a BasicBlock,
+        num_cases: usize,
+    ) -> &'a Value {
+        unsafe { llvm::LLVMBuildSwitch(self, v, else_, num_cases as c_uint) }
+    }
 }
 
 pub struct BranchTarget<'a> {

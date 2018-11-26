@@ -17,7 +17,7 @@ macro_rules! declare_control_instrs {
         declare_instr!(Br, br, u32);
         declare_instr!(BrIf, br_if, u32);
         declare_instr!(Return, return_);
-        declare_instr!(BrTable, br_table, u32);
+        declare_instr!(BrTable, br_table, BrTableData);
         declare_instr!(Call, call, u32);
         declare_instr!(Unreachable, unreachable);
         declare_instr!(CallIndirect, call_indirect, u32, u8);

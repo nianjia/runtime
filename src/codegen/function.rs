@@ -127,7 +127,7 @@ impl Function {
 pub struct FunctionCodeGen<'a> {
     pub(in codegen) ll_func: &'a Function,
     pub(in codegen) func_ty: FunctionType,
-    module: Rc<ModuleCodeGen<'a>>,
+    pub(in codegen) module: Rc<ModuleCodeGen<'a>>,
     pub(in codegen) ctx: Rc<ContextCodeGen<'a>>,
     pub(in codegen) builder: &'a Builder<'a>,
     pub(in codegen) control_stack: Vec<ControlContext<'a>>,
@@ -153,6 +153,15 @@ impl<'a> CodeGen<'a> for FunctionCodeGen<'a> {
 }
 
 impl<'a> FunctionCodeGen<'a> {
+    pub fn new(ll_func: &'a Function) -> Self {
+        unimplemented!()
+    }
+
+    #[inline]
+    pub fn get_func_type(&self) -> FunctionType {
+        self.func_ty.clone()
+    }
+
     pub fn codegen(&mut self) {
         let di_func_param_types = self
             .func_ty

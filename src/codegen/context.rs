@@ -1,6 +1,6 @@
 use super::common;
-use super::{_type::Type, function::Builder, function::Function};
-use llvm::{self, BasicBlock, Value};
+use super::{_type::Type, function::Builder, function::Function, FunctionCodeGen};
+use llvm::{self, BasicBlock, CallConv, Value};
 use std::ffi::CString;
 use wasm::{self, types::V128, Module, ValueType};
 
@@ -174,5 +174,14 @@ impl<'a> ContextCodeGen<'a> {
             llvm::TypeKind::X86_MMX => builder.create_bit_cast(v, self.i64x2_type),
             _ => v,
         }
+    }
+
+    pub fn emit_call_or_invoke(
+        &self,
+        callee: &FunctionCodeGen<'a>,
+        args: Vec<&'a Value>,
+        call_conv: CallConv,
+    ) -> Vec<&'a Value> {
+        unimplemented!()
     }
 }

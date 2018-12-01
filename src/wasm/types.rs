@@ -40,6 +40,13 @@ impl From<BlockType> for ValueType {
     }
 }
 
+pub trait NativeType {}
+
+pub type I32 = i32;
+pub type I64 = i64;
+pub type F32 = f32;
+pub type F64 = f64;
+
 #[repr(C, align(16))]
 pub union V128 {
     i8x16: [i8; 16],
@@ -51,6 +58,12 @@ pub union V128 {
     i64x2: [i64; 2],
     u64x2: [u64; 2],
 }
+
+impl NativeType for I32 {}
+impl NativeType for I64 {}
+impl NativeType for F32 {}
+impl NativeType for F64 {}
+impl NativeType for V128 {}
 
 impl V128 {
     pub fn zero() -> Self {

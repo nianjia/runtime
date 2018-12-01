@@ -1,19 +1,21 @@
-use super::{common, debuginfo, ContextCodeGen, Function, Type, Value};
+use super::{common, debuginfo, ContextCodeGen, Function, FunctionCodeGen, Type, Value};
 use llvm::debuginfo::{DIBuilder, DIDescriptor};
 pub use llvm::Module;
 use llvm::{self, Metadata};
 use std::ffi::CString;
 use std::rc::Rc;
+use wasm::Module as WASMModule;
 use wasm::{self, ValueType};
 
 pub(super) struct ModuleCodeGen<'a> {
     llmod: &'a Module,
+    wasm_module: Rc<WASMModule>,
     type_ids: Vec<&'a Value>,
     table_offsets: Vec<&'a Value>,
     memory_offsets: Vec<&'a Value>,
     globals: Vec<&'a Value>,
     exception_type_ids: Vec<&'a Value>,
-    functions: Vec<&'a Function>,
+    functions: Vec<FunctionCodeGen<'a>>,
     pub dibuilder: &'a DIBuilder<'a>,
     default_table_offset: Option<&'a Value>,
     default_memory_offset: Option<&'a Value>,
@@ -24,6 +26,21 @@ pub(super) struct ModuleCodeGen<'a> {
 impl<'a> ModuleCodeGen<'a> {
     pub fn get_di_value_type(&self, ty: ValueType) -> Option<&'a Metadata> {
         self.di_value_types[ty as usize]
+    }
+
+    #[inline]
+    pub fn get_function(&self, idx: u32) -> &FunctionCodeGen<'a> {
+        &self.functions[idx as usize]
+    }
+
+    #[inline]
+    pub fn get_function_mut(&mut self, idx: u32) -> &mut FunctionCodeGen<'a> {
+        &mut self.functions[idx as usize]
+    }
+
+    #[inline]
+    pub fn get_wasm_module(&self) -> Rc<WASMModule> {
+        self.wasm_module.clone()
     }
 }
 
@@ -59,7 +76,7 @@ fn get_function_type<'a>(
 }
 
 fn module_codegen<'a>(
-    wasm_module: &wasm::Module,
+    wasm_module: Rc<wasm::Module>,
     ctx: &'a ContextCodeGen<'a>,
 ) -> ModuleCodeGen<'a> {
     let llmod = ctx.create_module("");
@@ -154,7 +171,7 @@ fn module_codegen<'a>(
                     ],
                     ));
                     func.set_personality_function(personality_func);
-                    func
+                    FunctionCodeGen::new(func)
                 })
                 .collect()
         } else {
@@ -182,6 +199,7 @@ fn module_codegen<'a>(
 
     ModuleCodeGen {
         llmod,
+        wasm_module,
         type_ids,
         table_offsets,
         memory_offsets,

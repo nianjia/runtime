@@ -2,7 +2,17 @@ use super::_type::Type;
 use super::value::Value;
 use libc::c_uint;
 use llvm::{self, Context, False, Metadata, True};
-use wasm::types::V128;
+use wasm::types::*;
+
+trait Literal {
+    fn emit_const<'ll>(&self, ctx: &'ll Context) -> &'ll Value;
+}
+
+// impl Literal for I32 {
+//     fn emit_const<'ll>(&self, ctx: &'ll Context) -> &'ll Value {
+//         unsafe { llvm::LLVMConstIntOfArbitraryPrecision(ctx, 1, (*self as u64).as_ptr()) }
+//     }
+// }
 
 // LLVM constant constructors.
 pub fn const_null<'ll>(t: &'ll Type) -> &'ll Value {

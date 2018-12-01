@@ -7,6 +7,7 @@ mod control;
 pub mod debuginfo;
 mod function;
 mod module;
+mod numeric;
 mod value;
 
 pub use self::_type::Type;

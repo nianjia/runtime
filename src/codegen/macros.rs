@@ -26,3 +26,9 @@ macro_rules! declare_control_instrs {
         declare_instr!(Select, select);
     };
 }
+
+macro_rules! declare_numeric_instr {
+    ($name:ident, $type:ty) => {
+        declare_instr!($name, $name, LiteralImm<$type>);
+    };
+}

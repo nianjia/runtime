@@ -1,6 +1,7 @@
 use super::common;
 use super::function::BranchTarget;
 use super::{ContorlContextType, ControlContext, FunctionCodeGen};
+use llvm::CallConv;
 use std::rc::Rc;
 use wasm::{BlockType, BrTableData, FunctionType, ValueType};
 
@@ -201,7 +202,7 @@ impl<'a> ControlInstrEmit for FunctionCodeGen<'a> {
     }
 
     fn br_table(&mut self, data: BrTableData) {
-        let idx = self.pop();
+        let index = self.pop();
         let num_args = self.get_branch_target(data.default).type_PHIs.len();
         let args = (0..num_args).map(|_| self.pop()).rev().collect::<Vec<_>>();
 
@@ -216,7 +217,7 @@ impl<'a> ControlInstrEmit for FunctionCodeGen<'a> {
             });
 
             self.builder
-                .create_switch(idx, default_target.block, data.table.len())
+                .create_switch(index, default_target.block, data.table.len())
         };
 
         data.table.iter().enumerate().for_each(|(i, item)| {
@@ -237,7 +238,24 @@ impl<'a> ControlInstrEmit for FunctionCodeGen<'a> {
         self.enter_unreachable();
     }
 
-    fn call(&mut self, index: u32) {}
+    fn call(&mut self, index: u32) {
+        let callee_type = self.module.get_function(index).get_func_type();
+        let ll_args = (0..callee_type.params().len())
+            .map(|_| {
+                let v = self.pop();
+                self.ctx.coerce_to_canonical_type(self.builder, v)
+            })
+            .rev()
+            .collect::<Vec<_>>();
+
+        let res = self.ctx.emit_call_or_invoke(
+            self.module.get_function(index),
+            ll_args,
+            CallConv::FastCallConv,
+        );
+
+        res.iter().for_each(|v| self.push(v));
+    }
 
     fn unreachable(&mut self) {
         self.emit_runtime_intrinsic("unreachableTrap", FunctionType::default(), Vec::new());
@@ -245,7 +263,15 @@ impl<'a> ControlInstrEmit for FunctionCodeGen<'a> {
         self.enter_unreachable();
     }
 
-    fn call_indirect(&mut self, ty_index: u32, table_index: u8) {}
+    fn call_indirect(&mut self, ty_index: u32, table_index: u8) {
+        let index = self.pop();
+        let func_ty = match self.module.get_wasm_module().type_section() {
+            Some(section) => section.types()[ty_index as usize].clone(),
+            None => panic!(),
+        };
+
+        // TODO
+    }
 
     fn nop(&mut self) {}
 

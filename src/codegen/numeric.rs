@@ -22,7 +22,7 @@ macro_rules! emit_const {
     };
 }
 
-impl<'a> NumericInstrEmit for FunctionCodeGen<'a> {
+impl NumericInstrEmit for FunctionCodeGen {
     emit_const!(i32_const, I32);
     emit_const!(i64_const, I64);
     emit_const!(f32_const, F32);

@@ -1,10 +1,13 @@
 use super::BasicBlock;
-use super::_type::Type;
-use llvm;
-pub use llvm::Value;
-
+use codegen::_type::Type;
+use llvm_sys;
+use llvm_sys::prelude::LLVMValueRef;
 use std::fmt;
 use std::hash::{Hash, Hasher};
+use std::ops::Deref;
+
+// pub struct Value(LLVMValueRef);
+define_llvm_wrapper!(pub Value, LLVMValueRef);
 
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
@@ -20,27 +23,19 @@ impl Hash for Value {
     }
 }
 
-impl fmt::Debug for Value {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(
-            &llvm::build_string(|s| unsafe {
-                llvm::LLVMRustWriteValueToString(self, s);
-            })
-            .expect("nun-UTF8 value description from LLVM"),
-        )
-    }
-}
+// impl fmt::Debug for Value {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         f.write_str(llvm_sys::core::LLVMPrintValueToString(self.0))
+//             .expect("nun-UTF8 value description from LLVM")
+//     }
+// }
 
 impl Value {
-    pub fn get_ptr_to_int<'a>(&'a self, ty: &'a Type) -> &'a Value {
-        unsafe { llvm::LLVMConstPtrToInt(self, ty) }
+    pub fn get_ptr_to_int<'a>(&self, ty: Type) -> Value {
+        Value::from(unsafe { llvm_sys::core::LLVMConstPtrToInt(self.0, *ty) })
     }
-}
 
-pub type SwitchInst = llvm::Value;
-
-impl SwitchInst {
-    pub fn add_case<'a>(&self, on_val: &'a Value, dest: &'a BasicBlock) {
-        unsafe { llvm::LLVMAddCase(self, on_val, dest) }
+    pub fn get_type(&self) -> Type {
+        Type::from(unsafe { llvm_sys::core::LLVMTypeOf(self.0) })
     }
 }

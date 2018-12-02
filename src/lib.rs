@@ -13,9 +13,10 @@ extern crate bitflags;
 #[macro_use]
 extern crate lazy_static;
 extern crate parity_wasm;
+extern crate llvm_sys;
 
 #[macro_use]
-mod codegen;
-mod llvm;
+pub mod codegen;
+//mod llvm;
 mod utils;
-mod wasm;
+pub mod wasm;

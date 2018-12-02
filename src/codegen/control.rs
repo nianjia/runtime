@@ -1,7 +1,7 @@
 use super::common;
 use super::function::BranchTarget;
 use super::{ContorlContextType, ControlContext, FunctionCodeGen};
-use llvm::CallConv;
+use llvm_sys::LLVMCallConv;
 use std::rc::Rc;
 use wasm::{BlockType, BrTableData, FunctionType, ValueType};
 
@@ -9,11 +9,11 @@ trait ControlInstrEmit {
     declare_control_instrs!();
 }
 
-impl<'a> ControlInstrEmit for FunctionCodeGen<'a> {
+impl ControlInstrEmit for FunctionCodeGen {
     fn block(&mut self, ty: BlockType) {
         let res_ty = ValueType::from(ty);
 
-        let end_block = self.ctx.create_basic_block("blockEnd", self.ll_func);
+        let end_block = self.ctx.create_basic_block("blockEnd", self.func);
         let end_PHIs = self.create_PHIs(end_block, &vec![res_ty]);
 
         self.control_stack.push(ControlContext::new(
@@ -28,7 +28,7 @@ impl<'a> ControlInstrEmit for FunctionCodeGen<'a> {
 
         self.branch_target_stack.push(BranchTarget {
             block: end_block,
-            type_PHIs: vec![(res_ty, end_PHIs.first().unwrap())],
+            type_PHIs: vec![(res_ty, *end_PHIs.first().unwrap())],
         })
     }
 
@@ -36,8 +36,8 @@ impl<'a> ControlInstrEmit for FunctionCodeGen<'a> {
         let res_ty = vec![ValueType::from(ty)];
         // let enrty_block = self.builder.get_insert_block();
 
-        let loop_body_block = self.ctx.create_basic_block("loopBody", self.ll_func);
-        let end_block = self.ctx.create_basic_block("loopEnd", self.ll_func);
+        let loop_body_block = self.ctx.create_basic_block("loopBody", self.func);
+        let end_block = self.ctx.create_basic_block("loopEnd", self.func);
         let end_PHIs = self.create_PHIs(end_block, &res_ty);
 
         self.builder.create_br_instr(loop_body_block);
@@ -57,9 +57,9 @@ impl<'a> ControlInstrEmit for FunctionCodeGen<'a> {
     fn if_(&mut self, ty: BlockType) {
         let res_ty = ValueType::from(ty);
 
-        let then_block = self.ctx.create_basic_block("ifThen", self.ll_func);
-        let else_block = self.ctx.create_basic_block("ifElse", self.ll_func);
-        let end_block = self.ctx.create_basic_block("ifElseEnd", self.ll_func);
+        let then_block = self.ctx.create_basic_block("ifThen", self.func);
+        let else_block = self.ctx.create_basic_block("ifElse", self.func);
+        let end_block = self.ctx.create_basic_block("ifElseEnd", self.func);
         let end_PHIs = self.create_PHIs(end_block, &vec![res_ty]);
 
         let cond = self.pop();
@@ -82,7 +82,7 @@ impl<'a> ControlInstrEmit for FunctionCodeGen<'a> {
         self.branch_target_stack.push(BranchTarget {
             // param_types: res_ty,
             block: end_block,
-            type_PHIs: vec![(res_ty, end_PHIs.first().unwrap())],
+            type_PHIs: vec![(res_ty, *end_PHIs.first().unwrap())],
         });
     }
 
@@ -97,7 +97,7 @@ impl<'a> ControlInstrEmit for FunctionCodeGen<'a> {
         assert!(cur_ctx.ty == ContorlContextType::IfThen);
 
         let else_block = cur_ctx.else_block.unwrap().clone();
-        else_block.move_after(self.builder.get_insert_block().unwrap());
+        else_block.move_after(self.builder.get_insert_block());
 
         // TODO: check whether need else arguments.
         // cur_ctx.else_args.clone().into_iter().for_each(|t| {});
@@ -114,7 +114,7 @@ impl<'a> ControlInstrEmit for FunctionCodeGen<'a> {
 
         let cur_ctx = self.control_stack.last().unwrap();
         if let Some(else_block) = cur_ctx.else_block {
-            else_block.move_after(self.builder.get_insert_block().unwrap());
+            else_block.move_after(self.builder.get_insert_block());
             self.builder.set_insert_block(else_block);
             self.builder.create_br_instr(cur_ctx.end_block);
 
@@ -132,7 +132,7 @@ impl<'a> ControlInstrEmit for FunctionCodeGen<'a> {
 
         cur_ctx
             .end_block
-            .move_after(self.builder.get_insert_block().unwrap());
+            .move_after(self.builder.get_insert_block());
         self.builder.set_insert_block(cur_ctx.end_block);
 
         assert!(cur_ctx.end_PHIs.len() == cur_ctx.res_types.len());
@@ -153,7 +153,7 @@ impl<'a> ControlInstrEmit for FunctionCodeGen<'a> {
             let (ty, PHI) = self.get_branch_target(depth).type_PHIs[t];
             PHI.add_incoming(
                 self.ctx.coerce_to_canonical_type(self.builder, res),
-                self.builder.get_insert_block().unwrap(),
+                self.builder.get_insert_block(),
             )
         });
 
@@ -170,11 +170,11 @@ impl<'a> ControlInstrEmit for FunctionCodeGen<'a> {
             let arg = self.get_value_from_stack(len - t - 1);
             target.type_PHIs[t].1.add_incoming(
                 self.ctx.coerce_to_canonical_type(self.builder, arg),
-                self.builder.get_insert_block().unwrap(),
+                self.builder.get_insert_block(),
             );
         });
 
-        let false_block = self.ctx.create_basic_block("br_ifElse", self.ll_func);
+        let false_block = self.ctx.create_basic_block("br_ifElse", self.func);
         self.builder.create_cond_br_instr(
             self.ctx.coerce_i32_to_bool(self.builder, cond),
             target.block,
@@ -190,7 +190,7 @@ impl<'a> ControlInstrEmit for FunctionCodeGen<'a> {
                 let cur_ctx = self.control_stack.first().unwrap();
                 cur_ctx.end_PHIs[0].add_incoming(
                     self.ctx.coerce_to_canonical_type(self.builder, v),
-                    self.builder.get_insert_block().unwrap(),
+                    self.builder.get_insert_block(),
                 );
             }
             None => {}
@@ -212,7 +212,7 @@ impl<'a> ControlInstrEmit for FunctionCodeGen<'a> {
             args.iter().enumerate().for_each(|(t, v)| {
                 default_target.type_PHIs[t].1.add_incoming(
                     self.ctx.coerce_to_canonical_type(self.builder, *v),
-                    self.builder.get_insert_block().unwrap(),
+                    self.builder.get_insert_block(),
                 );
             });
 
@@ -224,13 +224,16 @@ impl<'a> ControlInstrEmit for FunctionCodeGen<'a> {
             let target = self.get_branch_target(*item);
             assert!(i < std::u32::MAX as usize);
 
-            ll_switch.add_case(common::const_u32(self.ctx.ll_ctx, i as u32), target.block);
+            ll_switch.add_case(
+                common::const_u32(*self.ctx.get_llvm_wrapper(), i as u32),
+                target.block,
+            );
 
             assert!(target.type_PHIs.len() == num_args);
             args.iter().enumerate().for_each(|(t, v)| {
                 target.type_PHIs[t].1.add_incoming(
                     self.ctx.coerce_to_canonical_type(self.builder, *v),
-                    self.builder.get_insert_block().unwrap(),
+                    self.builder.get_insert_block(),
                 );
             });
         });
@@ -251,10 +254,10 @@ impl<'a> ControlInstrEmit for FunctionCodeGen<'a> {
         let res = self.ctx.emit_call_or_invoke(
             self.module.get_function(index),
             ll_args,
-            CallConv::FastCallConv,
+            LLVMCallConv::LLVMFastCallConv,
         );
 
-        res.iter().for_each(|v| self.push(v));
+        res.iter().for_each(|v| self.push(*v));
     }
 
     fn unreachable(&mut self) {
@@ -264,11 +267,11 @@ impl<'a> ControlInstrEmit for FunctionCodeGen<'a> {
     }
 
     fn call_indirect(&mut self, ty_index: u32, table_index: u8) {
-        let index = self.pop();
-        let func_ty = match self.module.get_wasm_module().type_section() {
-            Some(section) => section.types()[ty_index as usize].clone(),
-            None => panic!(),
-        };
+        // let index = self.pop();
+        // let func_ty = match self.module.get_wasm_module().type_section() {
+        //     Some(section) => section.types()[ty_index as usize].clone(),
+        //     None => panic!(),
+        // };
 
         // TODO
     }
@@ -284,9 +287,9 @@ impl<'a> ControlInstrEmit for FunctionCodeGen<'a> {
         let cond_bool = self.ctx.coerce_i32_to_bool(self.builder, cond);
         let false_value = self.pop();
         let true_value = self.pop();
-        self.push(
-            self.builder
-                .create_select(cond_bool, true_value, false_value),
-        );
+        let val = self
+            .builder
+            .create_select(cond_bool, true_value, false_value);
+        self.push(val);
     }
 }

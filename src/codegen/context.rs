@@ -1,57 +1,60 @@
-use super::common;
-use super::{LLCallConv, LLContext};
-use super::{_type::Type, function::Builder, function::Function, FunctionCodeGen};
-use llvm::{self, BasicBlock, CallConv, Value};
+use super::{_type::Type, function::Builder, value::Value, BasicBlock, FunctionCodeGen};
+use super::{common, function::Function, module::Module};
+use llvm_sys::prelude::{LLVMContextRef, LLVMModuleRef};
+use llvm_sys::{LLVMCallConv, LLVMTypeKind};
 use std::ffi::CString;
-use wasm::{self, types::V128, Module, ValueType};
+use std::ops::Deref;
+use wasm::{self, types::V128, Module as WASMModule, ValueType};
 
 lazy_static! {
     static ref IS_LLVM_INITIALIZED: bool = {
-        unsafe {
-            llvm::LLVMInitializeNativeTarget();
-            llvm::InitializeNativeTargetAsmPrinter();
-            llvm::InitializeNativeTargetAsmParser();
-            llvm::InitializeNativeTargetDisassembler();
-            llvm::LLVMLoadLibraryPermanently(std::ptr::null());
-        };
+        // unsafe {
+        //     llvm_sys::core::LLVMInitializeNativeTarget();
+        //     llvm::InitializeNativeTargetAsmPrinter();
+        //     llvm::InitializeNativeTargetAsmParser();
+        //     llvm::InitializeNativeTargetDisassembler();
+        //     llvm_sys::core::LLVMLoadLibraryPermanently(std::ptr::null());
+        // };
         true
     };
 }
 
-pub struct ContextCodeGen<'a> {
-    pub ll_ctx: &'a LLContext,
-    pub i8_type: &'a llvm::Type,
-    i16_type: &'a llvm::Type,
-    pub i32_type: &'a llvm::Type,
-    pub i64_type: &'a llvm::Type,
-    pub f32_type: &'a llvm::Type,
-    pub f64_type: &'a llvm::Type,
-    pub i8_ptr_type: &'a llvm::Type,
-    pub iptr_type: &'a llvm::Type,
-    i8x16_type: &'a llvm::Type,
-    i16x8_type: &'a llvm::Type,
-    i32x4_type: &'a llvm::Type,
-    i64x2_type: &'a llvm::Type,
-    f32x4_type: &'a llvm::Type,
-    f64x2_type: &'a llvm::Type,
-    exception_pointer_struct_type: &'a llvm::Type,
-    anyref_type: &'a llvm::Type,
-    typed_zero_constants: [&'a llvm::Value; ValueType::LENGTH],
-    value_types: [&'a llvm::Type; ValueType::LENGTH],
+define_llvm_wrapper!(pub Context, LLVMContextRef);
+
+pub struct ContextCodeGen {
+    pub ctx: Context,
+    pub i8_type: Type,
+    i16_type: Type,
+    pub i32_type: Type,
+    pub i64_type: Type,
+    pub f32_type: Type,
+    pub f64_type: Type,
+    pub i8_ptr_type: Type,
+    pub iptr_type: Type,
+    i8x16_type: Type,
+    i16x8_type: Type,
+    i32x4_type: Type,
+    i64x2_type: Type,
+    f32x4_type: Type,
+    f64x2_type: Type,
+    exception_pointer_struct_type: Type,
+    anyref_type: Type,
+    typed_zero_constants: [Value; ValueType::LENGTH],
+    value_types: [Type; ValueType::LENGTH],
 }
 
-impl<'a> Drop for ContextCodeGen<'a> {
+impl Drop for ContextCodeGen {
     fn drop(&mut self) {
         unsafe {
-            llvm::LLVMContextDispose(&self.ll_ctx);
+            llvm_sys::core::LLVMContextDispose(*self.ctx);
         }
     }
 }
 
-impl<'a> ContextCodeGen<'a> {
-    pub fn new() -> ContextCodeGen<'a> {
+impl ContextCodeGen {
+    pub fn new() -> ContextCodeGen {
         assert!(*IS_LLVM_INITIALIZED);
-        let ll_ctx = unsafe { llvm::LLVMRustContextCreate(false) };
+        let ll_ctx = unsafe { llvm_sys::core::LLVMContextCreate() };
 
         let i8_type = Type::i8(ll_ctx);
         let i8_ptr_type = i8_type.ptr_to();
@@ -113,7 +116,7 @@ impl<'a> ContextCodeGen<'a> {
             common::const_null(anyref_type),
         ];
         Self {
-            ll_ctx,
+            ctx: Context::from(ll_ctx),
             i8_type,
             i16_type,
             i32_type,
@@ -135,54 +138,69 @@ impl<'a> ContextCodeGen<'a> {
         }
     }
 
-    pub fn create_module(&self, mod_name: &str) -> &'a llvm::Module {
-        let mod_name = CString::new(mod_name).expect("CString::new() error!");
-        unsafe { llvm::LLVMModuleCreateWithNameInContext(mod_name.as_ptr(), self.ll_ctx) }
+    pub fn get_llvm_wrapper(&self) -> Context {
+        self.ctx
     }
 
-    pub fn get_basic_type(&self, ty: ValueType) -> &'a Type {
+    pub fn create_module(&self, mod_name: &str) -> Module {
+        let mod_name = CString::new(mod_name).unwrap();
+        unsafe {
+            Module::from(llvm_sys::core::LLVMModuleCreateWithNameInContext(
+                mod_name.as_ptr(),
+                *self.ctx,
+            ))
+        }
+    }
+
+    pub fn get_basic_type(&self, ty: ValueType) -> Type {
         return self.value_types[ty as usize];
     }
 
     // Append a basic block to the end of a function.
-    pub fn create_basic_block(&self, name: &str, func: &'a Function) -> &'a BasicBlock {
+    pub fn create_basic_block(&self, name: &str, func: Function) -> BasicBlock {
         let c_name = CString::new(name).unwrap();
-        unsafe { llvm::LLVMAppendBasicBlockInContext(self.ll_ctx, func, c_name.as_ptr()) }
-    }
-
-    pub fn create_builder(&self) -> &'a mut Builder {
-        unsafe { llvm::LLVMCreateBuilderInContext(self.ll_ctx) }
-    }
-
-    pub fn coerce_i32_to_bool(&self, builder: &Builder<'a>, v: &'a Value) -> &'a Value {
-        let c_name = CString::new("").unwrap();
         unsafe {
-            llvm::LLVMBuildICmp(
-                builder,
-                llvm::IntPredicate::IntNE as u32,
-                v,
-                self.typed_zero_constants[ValueType::I32 as usize],
+            BasicBlock::from(llvm_sys::core::LLVMAppendBasicBlockInContext(
+                *self.ctx,
+                *func,
                 c_name.as_ptr(),
-            )
+            ))
         }
     }
 
-    pub fn coerce_to_canonical_type(&self, builder: &Builder<'a>, v: &'a Value) -> &'a Value {
-        let ty = unsafe { llvm::LLVMRustGetTypeKind(llvm::LLVMTypeOf(v)) };
+    pub fn create_builder(&self) -> Builder {
+        unsafe { Builder::from(llvm_sys::core::LLVMCreateBuilderInContext(*self.ctx)) }
+    }
+
+    pub fn coerce_i32_to_bool(&self, builder: Builder, v: Value) -> Value {
+        let c_name = CString::new("").unwrap();
+        unsafe {
+            Value::from(llvm_sys::core::LLVMBuildICmp(
+                *builder,
+                llvm_sys::LLVMIntPredicate::LLVMIntNE,
+                *v,
+                *self.typed_zero_constants[ValueType::I32 as usize],
+                c_name.as_ptr(),
+            ))
+        }
+    }
+
+    pub fn coerce_to_canonical_type(&self, builder: Builder, v: Value) -> Value {
+        let ty = unsafe { llvm_sys::core::LLVMGetTypeKind(llvm_sys::core::LLVMTypeOf(*v)) };
         match ty {
             // TODO: check whether the vector size is 128 bit.
-            llvm::TypeKind::Vector => builder.create_bit_cast(v, self.i64x2_type),
-            llvm::TypeKind::X86_MMX => builder.create_bit_cast(v, self.i64x2_type),
+            LLVMTypeKind::LLVMVectorTypeKind => builder.create_bit_cast(v, self.i64x2_type),
+            LLVMTypeKind::LLVMX86_MMXTypeKind => builder.create_bit_cast(v, self.i64x2_type),
             _ => v,
         }
     }
 
     pub fn emit_call_or_invoke(
         &self,
-        callee: &FunctionCodeGen<'a>,
-        args: Vec<&'a Value>,
-        call_conv: CallConv,
-    ) -> Vec<&'a Value> {
+        callee: &FunctionCodeGen,
+        args: Vec<Value>,
+        call_conv: LLVMCallConv,
+    ) -> Vec<Value> {
         unimplemented!()
     }
 }

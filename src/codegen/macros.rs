@@ -27,8 +27,8 @@ macro_rules! declare_control_instrs {
     };
 }
 
-macro_rules! declare_numeric_instr {
-    ($name:ident, $type:ty) => {
-        declare_instr!($name, $name, LiteralImm<$type>);
-    };
-}
+// macro_rules! declare_numeric_instr {
+//     ($name:ident, $type:ty) => {
+//         declare_instr!($name, $name, LiteralImm<$type>);
+//     };
+// }

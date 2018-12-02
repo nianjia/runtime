@@ -3,10 +3,13 @@ extern crate clap;
 extern crate nrt;
 extern crate parity_wasm;
 use clap::{App, Arg};
+use nrt::wasm::Module;
+use std::rc::Rc;
 
 fn run(file: &str) {
-    let wasm_module = parity_wasm::deserialize_file(file).unwrap();
-    // let compiled_module = nrt::compile_module(&wasm_module);
+    let wasm_module = Module::from(parity_wasm::deserialize_file(file).unwrap());
+
+    let compiled_module = nrt::codegen::compile_module(Rc::new(wasm_module));
 
     // let linked_module = nrt::link_module(compiled_module);
 }

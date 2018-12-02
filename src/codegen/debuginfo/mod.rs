@@ -1,10 +1,8 @@
-use super::Function;
 use libc::c_uint;
-use llvm;
-use llvm::debuginfo::DIBasicType;
-pub use llvm::debuginfo::{
-    DIArray, DIBuilder, DICompositeType, DIDescriptor, DIFile, DISubprogram, DIType,
-};
+// pub use llvm::debuginfo::{
+//     DIArray, DIBuilder, DICompositeType, DIDescriptor, DIFile, DISubprogram, DIType,
+// };
+use llvm_sys::prelude::LLVMDIBuilderRef;
 use std::ffi::CString;
 
 // From DWARF 5.
@@ -32,7 +30,9 @@ pub enum DwAteEncodeType {
     Rust = 0x1c,
 }
 
-impl<'a> DIBuilder<'a> {
+define_llvm_wrapper!(DIBuilder, LLVMDIBuilderRef);
+
+impl DIBuilder {
     pub fn create_basic_type(
         &self,
         name: &str,
@@ -42,7 +42,7 @@ impl<'a> DIBuilder<'a> {
     ) -> &'a DIBasicType {
         let c_name = CString::new(name).expect("CString::new() error!");
         unsafe {
-            llvm::LLVMRustDIBuilderCreateBasicType(
+            llvm_sys::core::LLVMDIBuilderCreateBasicType(
                 self,
                 c_name.as_ptr(),
                 size,
@@ -52,7 +52,7 @@ impl<'a> DIBuilder<'a> {
         }
     }
     pub fn create_diarray(&self, arr: &[Option<&'a DIDescriptor>]) -> &'a DIArray {
-        unsafe { llvm::LLVMRustDIBuilderGetOrCreateArray(self, arr.as_ptr(), arr.len() as u32) }
+        unsafe { llvm::sLLVMRustDIBuilderGetOrCreateArray(self, arr.as_ptr(), arr.len() as u32) }
     }
 
     pub fn create_subroutine_type(&self, param_types: &'a DIArray) -> &'a DICompositeType {

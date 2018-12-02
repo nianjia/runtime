@@ -21,6 +21,9 @@ impl AddCxxFile for Build {
 fn main() {
     let wrapper_path = Path::new("src/llvm/wrapper");
     println!("cargo:rerun-if-changed={}", wrapper_path.display());
+    println!("cargo:rustc-link-search=D:\\llvm-install\\lib");
+
+    println!("cargo:rustc-link-lib=LLVMCore");
 
     let cxx_files = [
         "ArchiveWrapper.cpp",

@@ -1,18 +1,45 @@
 use super::_type::Type;
 use super::value::Value;
+use super::ContextCodeGen;
+use super::LLFalse;
 use libc::c_uint;
 use llvm::{self, Context, False, Metadata, True};
 use wasm::types::*;
 
-trait Literal {
-    fn emit_const<'ll>(&self, ctx: &'ll Context) -> &'ll Value;
+pub trait Literal {
+    fn emit_const<'ll>(&self, ctx: &ContextCodeGen<'ll>) -> &'ll Value;
 }
 
-// impl Literal for I32 {
-//     fn emit_const<'ll>(&self, ctx: &'ll Context) -> &'ll Value {
-//         unsafe { llvm::LLVMConstIntOfArbitraryPrecision(ctx, 1, (*self as u64).as_ptr()) }
-//     }
-// }
+impl Literal for I32 {
+    fn emit_const<'ll>(&self, ctx: &ContextCodeGen<'ll>) -> &'ll Value {
+        unsafe { llvm::LLVMConstInt(ctx.i32_type, *self as u64, LLFalse) }
+    }
+}
+
+impl Literal for I64 {
+    fn emit_const<'ll>(&self, ctx: &ContextCodeGen<'ll>) -> &'ll Value {
+        unsafe { llvm::LLVMConstInt(ctx.i64_type, *self as u64, LLFalse) }
+    }
+}
+
+impl Literal for F32 {
+    fn emit_const<'ll>(&self, ctx: &ContextCodeGen<'ll>) -> &'ll Value {
+        unsafe { llvm::LLVMConstReal(ctx.f32_type, *self as f64) }
+    }
+}
+
+impl Literal for F64 {
+    fn emit_const<'ll>(&self, ctx: &ContextCodeGen<'ll>) -> &'ll Value {
+        unsafe { llvm::LLVMConstReal(ctx.f64_type, *self) }
+    }
+}
+
+impl Literal for V128 {
+    fn emit_const<'ll>(&self, ctx: &ContextCodeGen<'ll>) -> &'ll Value {
+        let [h, l] = self.into_u64x2();
+        const_vector(&[const_u64(ctx.ll_ctx, h), const_u64(ctx.ll_ctx, l)])
+    }
+}
 
 // LLVM constant constructors.
 pub fn const_null<'ll>(t: &'ll Type) -> &'ll Value {

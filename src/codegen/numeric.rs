@@ -1,4 +1,4 @@
-use super::common;
+use super::common::Literal;
 use super::FunctionCodeGen;
 use wasm::types::*;
 
@@ -6,21 +6,26 @@ use wasm::types::*;
 struct LiteralImm<T: NativeType>(T);
 
 trait NumericInstrEmit {
-    declare_numeric_instr!(i32_const, I32);
-    declare_numeric_instr!(i64_const, I64);
-    declare_numeric_instr!(f32_const, F32);
-    declare_numeric_instr!(f64_const, F64);
-    declare_numeric_instr!(v128_const, V128);
+    declare_instr!(I32Const, i32_const, I32);
+    declare_instr!(I64Const, i64_const, I64);
+    declare_instr!(F32Const, f32_const, F32);
+    declare_instr!(F64Const, f64_const, F64);
+    declare_instr!(V128Const, v128_const, V128);
 }
 
-// macro_rules! emit_const {
-//     ($name:ident, $type:ty) => {
-//         pub fn $name(&mut self, imm: LiteralImm<$type>) {
-//             self.push(common::const_v128(self.ctx)
-//         }
-//     };
-// }
+macro_rules! emit_const {
+    ($name:ident, $type:ty) => {
+        fn $name(&mut self, imm: $type) {
+            let const_val = imm.emit_const(&self.ctx);
+            self.push(const_val);
+        }
+    };
+}
 
-// impl NumericInstrEmit for FunctionCodeGen
-//     emit_const!(i32_const, I32);
-// }
+impl<'a> NumericInstrEmit for FunctionCodeGen<'a> {
+    emit_const!(i32_const, I32);
+    emit_const!(i64_const, I64);
+    emit_const!(f32_const, F32);
+    emit_const!(f64_const, F64);
+    emit_const!(v128_const, V128);
+}

@@ -9,6 +9,7 @@ mod function;
 mod module;
 mod numeric;
 mod value;
+mod variable;
 
 pub use self::_type::Type;
 pub(self) use self::context::ContextCodeGen;
@@ -20,6 +21,11 @@ pub use self::value::Value;
 
 use llvm;
 use wasm::ValueType;
+
+pub(self) use {
+    llvm::Bool as LLBool, llvm::CallConv as LLCallConv, llvm::Context as LLContext,
+    llvm::False as LLFalse, llvm::True as LLTrue,
+};
 
 pub type PHINode = Value;
 

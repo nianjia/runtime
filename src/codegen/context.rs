@@ -1,4 +1,5 @@
 use super::common;
+use super::{LLCallConv, LLContext};
 use super::{_type::Type, function::Builder, function::Function, FunctionCodeGen};
 use llvm::{self, BasicBlock, CallConv, Value};
 use std::ffi::CString;
@@ -18,13 +19,13 @@ lazy_static! {
 }
 
 pub struct ContextCodeGen<'a> {
-    pub ll_ctx: &'a llvm::Context,
+    pub ll_ctx: &'a LLContext,
     pub i8_type: &'a llvm::Type,
     i16_type: &'a llvm::Type,
     pub i32_type: &'a llvm::Type,
-    i64_type: &'a llvm::Type,
-    f32_type: &'a llvm::Type,
-    f64_type: &'a llvm::Type,
+    pub i64_type: &'a llvm::Type,
+    pub f32_type: &'a llvm::Type,
+    pub f64_type: &'a llvm::Type,
     pub i8_ptr_type: &'a llvm::Type,
     pub iptr_type: &'a llvm::Type,
     i8x16_type: &'a llvm::Type,

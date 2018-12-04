@@ -39,7 +39,8 @@ impl Builder {
     }
 
     pub fn create_phi(&self, ty: Type) -> PHINode {
-        unsafe { PHINode::from(llvm_sys::core::LLVMBuildPhi(self.0, *ty, null())) }
+        let name = CString::new("").unwrap();
+        unsafe { PHINode::from(llvm_sys::core::LLVMBuildPhi(self.0, *ty, name.as_ptr())) }
     }
 
     pub fn create_alloca(&self, ty: Type, name: &str) -> Value {
@@ -120,73 +121,87 @@ pub struct BranchTarget {
 pub struct FunctionCodeGen {
     pub(in codegen) func: Function,
     pub(in codegen) func_ty: FunctionType,
-    pub(in codegen) module: Rc<ModuleCodeGen>,
-    pub(in codegen) ctx: Rc<ContextCodeGen>,
+    // pub(in codegen) module: Rc<ModuleCodeGen>,
+    // pub(in codegen) ctx: Rc<ContextCodeGen>,
     pub(in codegen) builder: Builder,
     pub(in codegen) control_stack: Vec<ControlContext>,
     pub(in codegen) branch_target_stack: Vec<BranchTarget>,
     pub(in codegen) stack: Vec<Value>,
     pub(in codegen) local_pointers: Vec<Value>,
-    memory_base_ptr: Value,
-    ctx_ptr: Value,
+    // memory_base_ptr: Value,
+    // ctx_ptr: Value,
 }
 
-impl CodeGen for FunctionCodeGen {
-    fn init_context_variable(&mut self, init_context_ptr: Value) {
-        self.memory_base_ptr = self
-            .builder
-            .create_alloca(self.ctx.i8_ptr_type, "memoryBase");
-        self.ctx_ptr = self.builder.create_alloca(self.ctx.i8_ptr_type, "context");
-        self.builder.create_store(init_context_ptr, self.ctx_ptr);
-        self.reload_memory_base();
-    }
+// impl CodeGen for FunctionCodeGen {
+//     fn init_context_variable(&mut self, init_context_ptr: Value) {
+//         self.memory_base_ptr = self
+//             .builder
+//             .create_alloca(self.ctx.i8_ptr_type, "memoryBase");
+//         self.ctx_ptr = self.builder.create_alloca(self.ctx.i8_ptr_type, "context");
+//         self.builder.create_store(init_context_ptr, self.ctx_ptr);
+//         self.reload_memory_base();
+//     }
 
-    fn reload_memory_base(&mut self) {
-        // TODO
-    }
-}
+//     fn reload_memory_base(&mut self) {
+//         // TODO
+//     }
+// }
 
 impl FunctionCodeGen {
-    pub fn new(func: Function, func_ty: FunctionType) -> Self {
-        // let ctx = module.get
-        // Self {
-        //     func,
-        //     func_ty,
-        //     module,
-        // }
-        unimplemented!()
+    pub fn new(
+        // module: Rc<ModuleCodeGen>,
+        ctx: &ContextCodeGen,
+        func: Function,
+        func_ty: FunctionType,
+    ) -> Self {
+        let builder = ctx.get_builder();
+        Self {
+            func,
+            func_ty,
+            // module,
+            // ctx,
+            builder,
+            control_stack: Vec::new(),
+            branch_target_stack: Vec::new(),
+            stack: Vec::new(),
+            local_pointers: Vec::new(),
+        }
     }
 
-    pub fn create_entry_block(&self) {
-        let entry_block = self.ctx.create_basic_block("entry", self);
-        self.ctx.get_builder().set_insert_block(entry_block);
+    pub fn emit(&self) {}
+
+    pub fn create_entry_block(&self, ctx: &ContextCodeGen) {
+        let entry_block = ctx.create_basic_block("entry", self);
+        self.builder.set_insert_block(entry_block);
     }
 
-    pub fn create_PHIs(&self, block: BasicBlock, types: &[ValueType]) -> Vec<PHINode> {
-        let origin_block = self.ctx.get_builder().get_insert_block();
-        self.ctx.get_builder().set_insert_block(block);
+    pub fn create_PHIs(
+        &self,
+        ctx: &ContextCodeGen,
+        block: BasicBlock,
+        types: &[ValueType],
+    ) -> Vec<PHINode> {
+        let origin_block = ctx.get_builder().get_insert_block();
+        ctx.get_builder().set_insert_block(block);
         let ret = types
-            .into_iter()
-            .map(|t| {
-                self.ctx
-                    .get_builder()
-                    .create_phi(self.ctx.get_basic_type(*t))
-            })
+            .iter()
+            .map(|t| self.builder.create_phi(ctx.get_basic_type(*t)))
             .collect::<Vec<_>>();
         // if let Some(block) = origin_block {
-        self.ctx.get_builder().set_insert_block(origin_block);
+        self.builder.set_insert_block(origin_block);
         // }
         ret
     }
 
-    fn create_ret_block(&mut self) {
-        let ret_block = self.ctx.create_basic_block("return", self);
+    fn create_ret_block(&mut self, ctx: &ContextCodeGen) {
+        let ret_block = ctx.create_basic_block("return", self);
         let ret_ty = self
             .func_ty
             .return_type()
             .map(ValueType::from)
             .unwrap_or(ValueType::None);
-        let PHIs = self.create_PHIs(ret_block, &[ret_ty]);
+        println!("{:?}", ret_ty);
+        let PHIs = self.create_PHIs(ctx, ret_block, &[ret_ty]);
         self.push_control_stack(
             ContorlContextType::Function,
             vec![ret_ty],
@@ -231,7 +246,7 @@ impl FunctionCodeGen {
         self.func_ty.clone()
     }
 
-    pub fn codegen(&mut self) {
+    pub fn codegen(&mut self, ctx: &ContextCodeGen) {
         // let di_func_param_types = self
         //     .func_ty
         //     .params()
@@ -251,12 +266,12 @@ impl FunctionCodeGen {
         //     self.ll_func,
         // );
 
-        self.create_ret_block();
-        self.create_entry_block();
+        self.create_ret_block(ctx);
+        self.create_entry_block(ctx);
 
         let params = self.params();
 
-        self.init_context_variable(params[0]);
+        // self.init_context_variable(params[0]);
     }
 
     pub fn get_value_from_stack(&self, idx: usize) -> Value {
@@ -301,7 +316,7 @@ impl FunctionCodeGen {
         ));
     }
 
-    pub fn branch_to_end_of_control_context(&mut self) {
+    pub fn branch_to_end_of_control_context(&mut self, ctx: &ContextCodeGen) {
         let (end_block, PHIs) = {
             let cur_ctx = self.control_stack.last().unwrap();
 
@@ -315,7 +330,7 @@ impl FunctionCodeGen {
         PHIs.into_iter().for_each(|t| {
             let res = self.stack.pop().unwrap();
             t.add_incoming(
-                self.ctx.coerce_to_canonical_type(self.builder, res),
+                ctx.coerce_to_canonical_type(self.builder, res),
                 // TODO: handle the None value of insert block
                 self.builder.get_insert_block(),
             );

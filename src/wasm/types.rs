@@ -1,7 +1,7 @@
 use super::BlockType;
 use std::convert::From;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum ValueType {
     None = 0,
     Any = 1,

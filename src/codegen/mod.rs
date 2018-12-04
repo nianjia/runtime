@@ -149,9 +149,10 @@ impl BasicBlock {
     }
 }
 
-pub fn compile_module(wasm_module: Rc<WASMModule>) -> Vec<u8> {
+pub fn compile_module(wasm_module: &WASMModule) -> Vec<u8> {
     let ctx = context::ContextCodeGen::new();
-    let module = module::module_codegen(wasm_module, &ctx);
+    let module = ModuleCodeGen::new(&ctx, wasm_module);
+    let llvm_module = module.emit(&ctx, wasm_module);
 
-    module.compile()
+    ctx.compile(llvm_module)
 }

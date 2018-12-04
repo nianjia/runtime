@@ -15,8 +15,8 @@ trait NumericInstrEmit {
 
 macro_rules! emit_const {
     ($name:ident, $type:ty) => {
-        fn $name(&mut self, imm: $type) {
-            let const_val = imm.emit_const(&self.ctx);
+        fn $name(&mut self, ctx: &$crate::codegen::ContextCodeGen, imm: $type) {
+            let const_val = imm.emit_const(ctx);
             self.push(const_val);
         }
     };

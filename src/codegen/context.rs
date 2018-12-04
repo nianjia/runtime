@@ -205,4 +205,8 @@ impl ContextCodeGen {
     ) -> Vec<Value> {
         unimplemented!()
     }
+
+    pub fn compile(&self, llvm_module: Module) -> Vec<u8> {
+        unimplemented!()
+    }
 }

@@ -6,7 +6,6 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 
-// pub struct Value(LLVMValueRef);
 define_llvm_wrapper!(pub Value, LLVMValueRef);
 
 impl PartialEq for Value {

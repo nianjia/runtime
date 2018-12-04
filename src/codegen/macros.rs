@@ -1,9 +1,9 @@
 macro_rules! declare_instr {
     ($op:ident, $name:ident) => {
-        fn $name(&mut self);
+        fn $name(&mut self, ctx: &$crate::codegen::ContextCodeGen);
     };
     ($op:ident, $name:ident, $($args:tt)*) => {
-        fn $name(&mut self, $($args)*);
+        fn $name(&mut self, ctx: &$crate::codegen::ContextCodeGen, $($args)*);
     };
 }
 

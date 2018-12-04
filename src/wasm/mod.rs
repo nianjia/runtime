@@ -85,8 +85,13 @@ impl From<parity_wasm::elements::Module> for Module {
 
 impl Module {
     #[inline]
-    pub fn types(&self) -> &[FunctionType] {
-        &self.types
+    pub fn get_func_type(&self, index: u32) -> &FunctionType {
+        &self.types[index as usize]
+    }
+
+    #[inline]
+    pub fn types_count(&self) -> usize {
+        self.types.len()
     }
 
     #[inline]

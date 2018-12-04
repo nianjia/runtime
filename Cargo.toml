@@ -3,10 +3,6 @@ name = "nrt"
 version = "0.0.1"
 authors = ["Pengfei Zhang <zpfalpc23@gmail.com>"]
 
-[lib]
-name = "nrt"
-path = "src/lib.rs"
-
 [dependencies]
 parity-wasm = "0.35"
 lazy_static = "1.2.0"

@@ -172,8 +172,9 @@ impl ControlInstrEmit for FunctionCodeGen {
     }
 
     fn return_(&mut self, ctx: &ContextCodeGen) {
-        match self.func_ty.return_type() {
-            Some(_) => {
+        match self.func_ty.res() {
+            ValueType::None => {}
+            _ => {
                 let v = self.pop();
                 let cur_ctx = self.control_stack.first().unwrap();
                 cur_ctx.end_PHIs[0].add_incoming(
@@ -181,7 +182,6 @@ impl ControlInstrEmit for FunctionCodeGen {
                     self.builder.get_insert_block(),
                 );
             }
-            None => {}
         }
 
         self.builder

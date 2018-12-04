@@ -204,9 +204,6 @@ fn get_function_type(ctx: &ContextCodeGen, wasm_func_type: &wasm::FunctionType) 
         .iter()
         .map(|t| ctx.get_basic_type(wasm::ValueType::from(*t)))
         .collect::<Vec<_>>();
-    let ret_ty = match wasm_func_type.return_type() {
-        Some(t) => ctx.get_basic_type(wasm::ValueType::from(t)),
-        None => Type::void(*ctx.get_llvm_wrapper()),
-    };
+    let ret_ty = ctx.get_basic_type(wasm_func_type.res());
     Type::func(&param_tys[..], ret_ty)
 }

@@ -2,9 +2,9 @@ mod defines;
 mod imports;
 pub mod types;
 
+pub use self::types::FunctionType;
 pub use self::types::ValueType;
 pub use parity_wasm::elements::BlockType;
-pub use parity_wasm::elements::FunctionType;
 pub use parity_wasm::elements::Instructions;
 // pub use parity_wasm::elements::Module;
 // pub use parity_wasm::elements::Type;
@@ -53,7 +53,7 @@ impl From<parity_wasm::elements::Module> for Module {
                 .types()
                 .iter()
                 .map(|t| match t {
-                    parity_wasm::elements::Type::Function(ty) => ty.clone(),
+                    parity_wasm::elements::Type::Function(ty) => FunctionType::from(ty.clone()),
                 })
                 .collect(),
         };

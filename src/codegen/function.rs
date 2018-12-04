@@ -195,12 +195,7 @@ impl FunctionCodeGen {
 
     fn create_ret_block(&mut self, ctx: &ContextCodeGen) {
         let ret_block = ctx.create_basic_block("return", self);
-        let ret_ty = self
-            .func_ty
-            .return_type()
-            .map(ValueType::from)
-            .unwrap_or(ValueType::None);
-        println!("{:?}", ret_ty);
+        let ret_ty = self.func_ty.res();
         let PHIs = self.create_PHIs(ctx, ret_block, &[ret_ty]);
         self.push_control_stack(
             ContorlContextType::Function,
@@ -232,7 +227,7 @@ impl FunctionCodeGen {
         }
     }
 
-    pub fn params(&self) -> Vec<Value> {
+    pub fn get_llvm_params(&self) -> Vec<Value> {
         let sz = unsafe { llvm_sys::core::LLVMCountParams(*self.func) };
         unsafe {
             (0..sz)
@@ -269,7 +264,7 @@ impl FunctionCodeGen {
         self.create_ret_block(ctx);
         self.create_entry_block(ctx);
 
-        let params = self.params();
+        self.func_ty.params().iter().for_each(|t| unimplemented!());
 
         // self.init_context_variable(params[0]);
     }

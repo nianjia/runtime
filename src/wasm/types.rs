@@ -15,6 +15,12 @@ pub enum ValueType {
     NullRef = 9,
 }
 
+impl Default for ValueType {
+    fn default() -> Self {
+        ValueType::None
+    }
+}
+
 impl ValueType {
     pub const LENGTH: usize = 10;
 }
@@ -72,5 +78,38 @@ impl V128 {
 
     pub fn into_u64x2(&self) -> [u64; 2] {
         unsafe { self.u64x2 }
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct FunctionType {
+    res: ValueType,
+    params: Vec<ValueType>,
+}
+
+impl From<parity_wasm::elements::FunctionType> for FunctionType {
+    fn from(func_type: parity_wasm::elements::FunctionType) -> Self {
+        let res = if let Some(res_type) = func_type.return_type() {
+            ValueType::from(res_type)
+        } else {
+            ValueType::None
+        };
+        let params = func_type
+            .params()
+            .iter()
+            .map(|t| ValueType::from(*t))
+            .collect();
+
+        Self { res, params }
+    }
+}
+
+impl FunctionType {
+    pub fn res(&self) -> ValueType {
+        self.res
+    }
+
+    pub fn params(&self) -> &[ValueType] {
+        &self.params
     }
 }

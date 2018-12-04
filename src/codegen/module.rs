@@ -22,7 +22,7 @@ impl Module {
         }
     }
 
-    pub fn create_imported_constant(self, name: &str, ty: Type) -> Value {
+    pub fn create_imported_constant(&self, name: &str, ty: Type) -> Value {
         let c_name = CString::new(name).unwrap();
         unsafe { Value::from(llvm_sys::core::LLVMAddGlobal(self.0, *ty, c_name.as_ptr())) }
     }
@@ -36,7 +36,7 @@ pub(super) struct ModuleCodeGen {
     memory_offsets: Vec<Value>,
     globals: Vec<Value>,
     exception_type_ids: Vec<Value>,
-    functions: Vec<FunctionCodeGen>,
+    functions: Vec<Function>,
     // pub dibuilder: DIBuilder,
     default_table_offset: Option<Value>,
     default_memory_offset: Option<Value>,
@@ -50,13 +50,8 @@ impl ModuleCodeGen {
     // }
 
     #[inline]
-    pub fn get_function(&self, idx: u32) -> &FunctionCodeGen {
-        &self.functions[idx as usize]
-    }
-
-    #[inline]
-    pub fn get_function_mut(&mut self, idx: u32) -> &mut FunctionCodeGen {
-        &mut self.functions[idx as usize]
+    pub fn get_function(&self, idx: u32) -> Function {
+        self.functions[idx as usize]
     }
 
     #[inline]
@@ -165,7 +160,7 @@ pub(super) fn module_codegen(wasm_module: Rc<wasm::Module>, ctx: &ContextCodeGen
                 //     ],
                 // ));
                 func.set_personality_function(personality_func);
-                FunctionCodeGen::new(*func)
+                func
             })
             .collect()
     };

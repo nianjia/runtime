@@ -84,21 +84,19 @@ pub fn const_f64(ctx: LLVMContextRef, i: f64) -> Value {
 }
 
 pub fn const_vector(elts: &[Value]) -> Value {
-    let mut elts_deref = *elts[0];
     unsafe {
         Value::from(llvm_sys::core::LLVMConstVector(
-            &mut elts_deref,
+            elts.as_ptr() as *mut _,
             elts.len() as c_uint,
         ))
     }
 }
 
 pub fn const_array(ty: Type, elts: &[Value]) -> Value {
-    let mut elts_deref = *elts[0];
     unsafe {
         Value::from(llvm_sys::core::LLVMConstArray(
             *ty,
-            &mut elts_deref,
+            elts.as_ptr() as *mut _,
             elts.len() as c_uint,
         ))
     }

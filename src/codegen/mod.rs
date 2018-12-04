@@ -88,7 +88,7 @@ trait CodeGen {
 }
 
 #[derive(PartialEq)]
-enum ContorlContextType {
+pub enum ContorlContextType {
     Function,
     Block,
     IfThen,

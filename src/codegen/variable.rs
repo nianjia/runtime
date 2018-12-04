@@ -9,20 +9,22 @@ trait VariableInstrEmit {
 impl VariableInstrEmit for FunctionCodeGen {
     fn get_local(&mut self, index: u32) {
         let val = self
-            .builder
+            .ctx
+            .get_builder()
             .create_load(self.local_pointers[index as usize]);
         self.push(val);
     }
 
     fn set_local(&mut self, index: u32) {
         let var = self.pop();
-        let val = self.builder.create_bit_cast(
+        let val = self.ctx.get_builder().create_bit_cast(
             var,
             self.local_pointers[index as usize]
                 .get_type()
                 .get_element_type(),
         );
-        self.builder
+        self.ctx
+            .get_builder()
             .create_store(val, self.local_pointers[index as usize]);
     }
 

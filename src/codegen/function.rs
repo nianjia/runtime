@@ -147,26 +147,63 @@ impl CodeGen for FunctionCodeGen {
 }
 
 impl FunctionCodeGen {
-    // pub fn new<'a>(
-    //     ctx: ModuleCodeGen,
-    //     name: &str,
-    //     call_conv: Option<llvm_sys::LLVMCallConv>,
-    //     ty: Type,
-    // ) -> Self {
-    //     let c_name = CString::new(name).unwrap();
-    //     let conv = {
-    //         if let Some(v) = call_conv {
-    //             v
-    //         } else {
-    //             llvm_sys::LLVMCallConv::CCallConv
-    //         }
-    //     };
-    //     let func = unsafe { llvm_sys::core::LLVMRustGetOrInsertFunction(ctx, c_name.as_ptr(), ty) };
-    //     unsafe {
-    //         llvm_sys::core::LLVMSetFunctionCallConv(func, conv as c_uint);
-    //     }
-    //     func
-    // }
+    pub fn new(func: Function, func_ty: FunctionType) -> Self {
+        // let ctx = module.get
+        // Self {
+        //     func,
+        //     func_ty,
+        //     module,
+        // }
+        unimplemented!()
+    }
+
+    pub fn create_entry_block(&self) {
+        let entry_block = self.ctx.create_basic_block("entry", self);
+        self.ctx.get_builder().set_insert_block(entry_block);
+    }
+
+    pub fn create_PHIs(&self, block: BasicBlock, types: &[ValueType]) -> Vec<PHINode> {
+        let origin_block = self.ctx.get_builder().get_insert_block();
+        self.ctx.get_builder().set_insert_block(block);
+        let ret = types
+            .into_iter()
+            .map(|t| {
+                self.ctx
+                    .get_builder()
+                    .create_phi(self.ctx.get_basic_type(*t))
+            })
+            .collect::<Vec<_>>();
+        // if let Some(block) = origin_block {
+        self.ctx.get_builder().set_insert_block(origin_block);
+        // }
+        ret
+    }
+
+    fn create_ret_block(&mut self) {
+        let ret_block = self.ctx.create_basic_block("return", self);
+        let ret_ty = self
+            .func_ty
+            .return_type()
+            .map(ValueType::from)
+            .unwrap_or(ValueType::None);
+        let PHIs = self.create_PHIs(ret_block, &[ret_ty]);
+        self.push_control_stack(
+            ContorlContextType::Function,
+            vec![ret_ty],
+            ret_block,
+            PHIs.clone(),
+            None,
+        );
+        self.branch_target_stack.push(BranchTarget {
+            // param_types: vec![ret_ty],
+            block: ret_block,
+            type_PHIs: vec![(ret_ty, *PHIs.first().unwrap())],
+        })
+    }
+
+    pub fn get_llvm_func(&self) -> Function {
+        self.func
+    }
 
     // pub fn set_prefix_data(&self, data: Value) {
     //     unsafe { llvm_sys::core::LLVMRustSetFunctionPrefixData(self, data) }
@@ -187,10 +224,6 @@ impl FunctionCodeGen {
                 .map(|t| Value::from(llvm_sys::core::LLVMGetParam(*self.func, t)))
                 .collect()
         }
-    }
-
-    pub fn new(ll_func: LLVMValueRef) -> Self {
-        unimplemented!()
     }
 
     #[inline]
@@ -231,7 +264,7 @@ impl FunctionCodeGen {
     }
 
     #[inline]
-    pub(in codegen) fn pop(&mut self) -> Value {
+    pub fn pop(&mut self) -> Value {
         assert!(
             self.stack.len()
                 - self
@@ -245,50 +278,27 @@ impl FunctionCodeGen {
     }
 
     #[inline]
-    pub(in codegen) fn push(&mut self, v: Value) {
+    pub fn push(&mut self, v: Value) {
         self.stack.push(v);
     }
 
-    fn create_entry_block(&self) {
-        let entry_block = self.ctx.create_basic_block("entry", self.func);
-        self.builder.set_insert_block(entry_block);
-    }
-
-    fn create_ret_block(&mut self) {
-        let ret_block = self.ctx.create_basic_block("return", self.func);
-        let ret_ty = self
-            .func_ty
-            .return_type()
-            .map(ValueType::from)
-            .unwrap_or(ValueType::None);
-        let PHIs = self.create_PHIs(ret_block, &[ret_ty]);
+    pub fn push_control_stack(
+        &mut self,
+        ty: ContorlContextType,
+        res_types: Vec<ValueType>,
+        end_block: BasicBlock,
+        end_PHIs: Vec<PHINode>,
+        else_block: Option<BasicBlock>,
+    ) {
         self.control_stack.push(ControlContext::new(
-            ContorlContextType::Function,
-            vec![ret_ty],
-            ret_block,
-            PHIs.clone(),
-            None,
+            ty,
+            res_types,
+            end_block,
+            end_PHIs,
+            else_block,
             self.stack.len(),
             self.branch_target_stack.len(),
         ));
-        self.branch_target_stack.push(BranchTarget {
-            // param_types: vec![ret_ty],
-            block: ret_block,
-            type_PHIs: vec![(ret_ty, *PHIs.first().unwrap())],
-        })
-    }
-
-    pub fn create_PHIs(&self, block: BasicBlock, types: &[ValueType]) -> Vec<PHINode> {
-        let origin_block = self.builder.get_insert_block();
-        self.builder.set_insert_block(block);
-        let ret = types
-            .into_iter()
-            .map(|t| self.builder.create_phi(self.ctx.get_basic_type(*t)))
-            .collect::<Vec<_>>();
-        // if let Some(block) = origin_block {
-        self.builder.set_insert_block(origin_block);
-        // }
-        ret
     }
 
     pub fn branch_to_end_of_control_context(&mut self) {

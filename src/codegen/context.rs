@@ -41,6 +41,7 @@ pub struct ContextCodeGen {
     anyref_type: Type,
     typed_zero_constants: [Value; ValueType::LENGTH],
     value_types: [Type; ValueType::LENGTH],
+    builder: Builder,
 }
 
 impl Drop for ContextCodeGen {
@@ -135,6 +136,7 @@ impl ContextCodeGen {
             anyref_type,
             typed_zero_constants,
             value_types,
+            builder: unsafe { Builder::from(llvm_sys::core::LLVMCreateBuilderInContext(ll_ctx)) },
         }
     }
 
@@ -157,19 +159,19 @@ impl ContextCodeGen {
     }
 
     // Append a basic block to the end of a function.
-    pub fn create_basic_block(&self, name: &str, func: Function) -> BasicBlock {
+    pub fn create_basic_block(&self, name: &str, func: &FunctionCodeGen) -> BasicBlock {
         let c_name = CString::new(name).unwrap();
         unsafe {
             BasicBlock::from(llvm_sys::core::LLVMAppendBasicBlockInContext(
                 *self.ctx,
-                *func,
+                *func.get_llvm_func(),
                 c_name.as_ptr(),
             ))
         }
     }
 
-    pub fn create_builder(&self) -> Builder {
-        unsafe { Builder::from(llvm_sys::core::LLVMCreateBuilderInContext(*self.ctx)) }
+    pub fn get_builder(&self) -> Builder {
+        self.builder
     }
 
     pub fn coerce_i32_to_bool(&self, builder: Builder, v: Value) -> Value {
@@ -197,7 +199,7 @@ impl ContextCodeGen {
 
     pub fn emit_call_or_invoke(
         &self,
-        callee: &FunctionCodeGen,
+        callee: Function,
         args: Vec<Value>,
         call_conv: LLVMCallConv,
     ) -> Vec<Value> {

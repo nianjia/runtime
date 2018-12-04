@@ -53,11 +53,10 @@ impl Type {
     }
 
     pub fn struct_(ctx: LLVMContextRef, els: &[Type], packed: bool) -> Self {
-        let mut els_deref = *els[0];
         Type::from(unsafe {
             llvm_sys::core::LLVMStructTypeInContext(
                 ctx,
-                &mut els_deref,
+                els.as_ptr() as *mut _,
                 els.len() as c_uint,
                 packed as i32,
             )
@@ -79,9 +78,13 @@ impl Type {
     }
 
     pub fn func(args: &[Type], ret: Type) -> Self {
-        let mut args_deref = *args[0];
         Type::from(unsafe {
-            llvm_sys::core::LLVMFunctionType(ret.0, &mut args_deref, args.len() as c_uint, 0)
+            llvm_sys::core::LLVMFunctionType(
+                ret.0,
+                args.as_ptr() as *mut _,
+                args.len() as c_uint,
+                0,
+            )
         })
     }
 

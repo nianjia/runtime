@@ -9,12 +9,8 @@ path = "src/lib.rs"
 
 [dependencies]
 parity-wasm = "0.35"
-bitflags = "1.0.4"
 lazy_static = "1.2.0"
 llvm-sys = "70.0.0"
-
-[build-dependencies]
-cc = "1.0.25"
 
 [dev-dependencies]
 clap = "2.32.0"

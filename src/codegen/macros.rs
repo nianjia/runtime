@@ -1,29 +1,53 @@
-macro_rules! declare_instr {
-    ($op:ident, $name:ident) => {
-        fn $name(&mut self, ctx: &$crate::codegen::ContextCodeGen);
+macro_rules! decode_instr {
+    (($self:ident, $ctx:expr, $var:expr), $instr:ident, $name:ident) => {
+        if let $crate::wasm::Instruction::$instr = $var {
+            $self.$name($ctx);
+            return;
+        };
     };
-    ($op:ident, $name:ident, $($args:tt)*) => {
-        fn $name(&mut self, ctx: &$crate::codegen::ContextCodeGen, $($args)*);
+    (($self:ident, $ctx:expr, $var:expr),$instr:ident, $name:ident, $arg1:expr) => {
+        if let $crate::wasm::Instruction::$instr(_arg1) = $var {
+            $self.$name($ctx, _arg1);
+            return;
+        };
+    };
+    (($self:ident, $ctx:expr, $var:expr), $instr:ident, $name:ident, $arg1:expr, $arg2:expr) => {
+        if let $crate::wasm::Instruction::$instr(_arg1, _arg2) = $var {
+            $self.$name($ctx, _arg1, _arg2);
+            return;
+        };
+    };
+}
+
+macro_rules! declare_instr {
+    ($var:tt, $instr:ident, $name:ident) => {
+        fn $name(&mut self, &$crate::codegen::ContextCodeGen);
+    };
+    ($var:tt, $instr:ident, $name:ident, $($args:tt)*) => {
+        fn $name(&mut self, &$crate::codegen::ContextCodeGen, $($args)*);
     };
 }
 
 macro_rules! declare_control_instrs {
-    () => {
-        declare_instr!(Block, block, BlockType);
-        declare_instr!(Loop, loop_, BlockType);
-        declare_instr!(If, if_, BlockType);
-        declare_instr!(Else, else_);
-        declare_instr!(End, end);
-        declare_instr!(Br, br, u32);
-        declare_instr!(BrIf, br_if, u32);
-        declare_instr!(Return, return_);
-        declare_instr!(BrTable, br_table, BrTableData);
-        declare_instr!(Call, call, u32);
-        declare_instr!(Unreachable, unreachable);
-        declare_instr!(CallIndirect, call_indirect, u32, u8);
-        declare_instr!(Nop, nop);
-        declare_instr!(Drop, drop);
-        declare_instr!(Select, select);
+    ($op:ident) => {
+        declare_control_instrs!($op, _);
+    };
+    ($op:ident, $var:tt) => {
+        $op!($var, Block, block, BlockType);
+        $op!($var, Loop, loop_, BlockType);
+        $op!($var, If, if_, BlockType);
+        $op!($var, Else, else_);
+        $op!($var, End, end);
+        $op!($var, Br, br, u32);
+        $op!($var, BrIf, br_if, u32);
+        $op!($var, Return, return_);
+        $op!($var, BrTable, br_table, Box::<BrTableData>);
+        $op!($var, Call, call, u32);
+        $op!($var, Unreachable, unreachable_);
+        $op!($var, CallIndirect, call_indirect, u32, u8);
+        $op!($var, Nop, nop);
+        $op!($var, Drop, drop);
+        $op!($var, Select, select_);
     };
 }
 

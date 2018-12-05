@@ -1,3 +1,4 @@
+use super::control::ControlInstrEmit;
 use super::{
     context::ContextCodeGen, module::ModuleCodeGen, BasicBlock, CodeGen, ContorlContextType,
     ControlContext, PHINode, Type, Value,
@@ -9,10 +10,12 @@ use std::ffi::{CStr, CString};
 use std::ops::Deref;
 use std::ptr::null;
 use std::rc::Rc;
-use wasm::{FunctionType, ValueType};
+use wasm::{Function as WASMFunction, FunctionType, Instruction, ValueType};
 
 define_llvm_wrapper!(pub Builder, LLVMBuilderRef);
 define_llvm_wrapper!(pub Function, LLVMValueRef);
+
+fn test_instruction(t: Instruction) {}
 
 impl Function {
     pub fn set_personality_function(&self, func: Function) {
@@ -168,8 +171,6 @@ impl FunctionCodeGen {
         }
     }
 
-    pub fn emit(&self) {}
-
     pub fn create_entry_block(&self, ctx: &ContextCodeGen) {
         let entry_block = ctx.create_basic_block("entry", self);
         self.builder.set_insert_block(entry_block);
@@ -241,7 +242,7 @@ impl FunctionCodeGen {
         self.func_ty.clone()
     }
 
-    pub fn codegen(&mut self, ctx: &ContextCodeGen) {
+    pub fn codegen(&mut self, ctx: &ContextCodeGen, wasm_func: &WASMFunction) {
         // let di_func_param_types = self
         //     .func_ty
         //     .params()
@@ -264,8 +265,24 @@ impl FunctionCodeGen {
         self.create_ret_block(ctx);
         self.create_entry_block(ctx);
 
-        self.func_ty.params().iter().for_each(|t| unimplemented!());
+        let ll_params = self.get_llvm_params();
+        assert!(ll_params.len() == self.func_ty.params().len());
 
+        self.func_ty
+            .clone()
+            .params()
+            .iter()
+            .zip(ll_params.iter())
+            .for_each(|(param, ll)| {
+                let local = self.builder.create_alloca(ctx.get_basic_type(*param), "");
+                self.builder.create_store(*ll, local);
+                self.local_pointers.push(local);
+            });
+
+        wasm_func.instructions().iter().for_each(|t| {
+            declare_control_instrs!(decode_instr, (self, ctx, t.clone()));
+            unimplemented!()
+        });
         // self.init_context_variable(params[0]);
     }
 

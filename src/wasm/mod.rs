@@ -5,14 +5,12 @@ pub mod types;
 pub use self::types::FunctionType;
 pub use self::types::ValueType;
 pub use parity_wasm::elements::BlockType;
+pub use parity_wasm::elements::Instruction;
 pub use parity_wasm::elements::Instructions;
+pub use parity_wasm::elements::BrTableData;
 // pub use parity_wasm::elements::Module;
 // pub use parity_wasm::elements::Type;
 
-pub struct BrTableData {
-    pub table: Box<[u32]>,
-    pub default: u32,
-}
 
 pub struct Function {
     type_index: u32,
@@ -33,6 +31,10 @@ impl Function {
     #[inline]
     pub fn type_index(&self) -> u32 {
         self.type_index
+    }
+
+    pub fn instructions(&self) -> &[Instruction] {
+        self.code.elements()
     }
 }
 

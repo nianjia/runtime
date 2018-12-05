@@ -5,8 +5,8 @@ use llvm_sys::LLVMCallConv;
 use std::rc::Rc;
 use wasm::{BlockType, BrTableData, FunctionType, ValueType};
 
-trait ControlInstrEmit {
-    declare_control_instrs!();
+pub trait ControlInstrEmit {
+    declare_control_instrs!(declare_instr);
 }
 
 impl ControlInstrEmit for FunctionCodeGen {
@@ -189,7 +189,7 @@ impl ControlInstrEmit for FunctionCodeGen {
         self.enter_unreachable();
     }
 
-    fn br_table(&mut self, ctx: &ContextCodeGen, data: BrTableData) {
+    fn br_table(&mut self, ctx: &ContextCodeGen, data: Box<BrTableData>) {
         let index = self.pop();
         let num_args = self.get_branch_target(data.default).type_PHIs.len();
         let args = (0..num_args).map(|_| self.pop()).rev().collect::<Vec<_>>();
@@ -249,7 +249,7 @@ impl ControlInstrEmit for FunctionCodeGen {
         // res.iter().for_each(|v| self.push(*v));
     }
 
-    fn unreachable(&mut self, ctx: &ContextCodeGen) {
+    fn unreachable_(&mut self, ctx: &ContextCodeGen) {
         self.emit_runtime_intrinsic("unreachableTrap", FunctionType::default(), Vec::new());
         self.builder.create_unreachable();
         self.enter_unreachable();
@@ -271,7 +271,7 @@ impl ControlInstrEmit for FunctionCodeGen {
         self.pop();
     }
 
-    fn select(&mut self, ctx: &ContextCodeGen) {
+    fn select_(&mut self, ctx: &ContextCodeGen) {
         let cond = self.pop();
         let cond_bool = ctx.coerce_i32_to_bool(self.builder, cond);
         let false_value = self.pop();

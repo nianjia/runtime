@@ -36,7 +36,7 @@ pub struct ModuleCodeGen {
     memory_offsets: Vec<Value>,
     globals: Vec<Value>,
     exception_type_ids: Vec<Value>,
-    functions: Vec<(Function, u32)>,
+    // functions: Vec<(Function, u32)>,
     // pub dibuilder: DIBuilder,
     default_table_offset: Option<Value>,
     default_memory_offset: Option<Value>,
@@ -47,8 +47,6 @@ pub struct ModuleCodeGen {
 impl ModuleCodeGen {
     pub(super) fn new(ctx: &ContextCodeGen, wasm_module: &wasm::Module) -> Self {
         let module = ctx.create_module("");
-        let personality_func =
-            module.add_function("__gxx_personality_v0", Type::func(&[], ctx.i32_type));
 
         let type_ids = (0..wasm_module.types_count())
             .map(|t| {
@@ -103,31 +101,6 @@ impl ModuleCodeGen {
         // };
 
         // TODO: exception globals
-        let functions = {
-            wasm_module
-                .functions()
-                .iter()
-                .enumerate()
-                .map(|(i, wasm_func)| {
-                    let s = format!("functionDef{}", i);
-                    module
-                        .create_imported_constant(s.as_str(), ctx.i8_type)
-                        .get_ptr_to_int(ctx.iptr_type);
-
-                    let func_type = wasm_module.get_func_type(wasm_func.type_index());
-                    let llvm_type = get_function_type(ctx, func_type);
-                    let func = module.add_function(s.as_str(), llvm_type);
-                    // func.set_prefix_data(common::const_array(
-                    //     ctx.iptr_type.array(4),
-                    //     &[
-                    //         // TODO add prefix data
-                    //     ],
-                    // ));
-                    func.set_personality_function(personality_func);
-                    (func, wasm_func.type_index())
-                })
-                .collect::<Vec<_>>()
-        };
 
         // let dibuilder = llmod.create_dibuilder();
         // let di_value_types = [
@@ -154,7 +127,7 @@ impl ModuleCodeGen {
             table_offsets: Vec::new(),
             memory_offsets: Vec::new(),
             globals: Vec::new(),
-            functions,
+            // functions,
             // dibuilder,
             default_memory_offset: None,
             default_table_offset: None,
@@ -168,10 +141,10 @@ impl ModuleCodeGen {
     //     self.di_value_types[ty as usize]
     // }
 
-    #[inline]
-    pub fn get_function(&self, idx: u32) -> Function {
-        self.functions[idx as usize].0
-    }
+    // #[inline]
+    // pub fn get_function(&self, idx: u32) -> Function {
+    //     self.functions[idx as usize].0
+    // }
 
     // #[inline]
     // pub fn get_wasm_module(&self) -> Rc<WASMModule> {
@@ -181,15 +154,37 @@ impl ModuleCodeGen {
     pub fn emit(&self, ctx: &ContextCodeGen, wasm_module: &WASMModule) -> Module {
         // let rc = Rc::new(*self);
         // let ctx = Rc::new(*ctx);
-        self.functions.iter().for_each(|(func, type_index)| {
-            FunctionCodeGen::new(
-                // rc,
-                ctx,
-                *func,
-                wasm_module.get_func_type(*type_index).clone(),
-            )
-            .codegen(ctx);
-        });
+        let module = self.module;
+        let personality_func =
+            module.add_function("__gxx_personality_v0", Type::func(&[], ctx.i32_type));
+        wasm_module
+            .functions()
+            .iter()
+            .enumerate()
+            .for_each(|(i, wasm_func)| {
+                let s = format!("functionDef{}", i);
+                module
+                    .create_imported_constant(s.as_str(), ctx.i8_type)
+                    .get_ptr_to_int(ctx.iptr_type);
+
+                let func_type = wasm_module.get_func_type(wasm_func.type_index());
+                let llvm_type = get_function_type(ctx, func_type);
+                let ll_func = module.add_function(s.as_str(), llvm_type);
+                // func.set_prefix_data(common::const_array(
+                //     ctx.iptr_type.array(4),
+                //     &[
+                //         // TODO add prefix data
+                //     ],
+                // ));
+                ll_func.set_personality_function(personality_func);
+                FunctionCodeGen::new(
+                    // rc,
+                    ctx,
+                    ll_func,
+                    func_type.clone(),
+                )
+                .codegen(ctx, wasm_func);
+            });
         unimplemented!()
     }
 

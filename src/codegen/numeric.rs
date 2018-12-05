@@ -6,11 +6,11 @@ use wasm::types::*;
 struct LiteralImm<T: NativeType>(T);
 
 trait NumericInstrEmit {
-    declare_instr!(I32Const, i32_const, I32);
-    declare_instr!(I64Const, i64_const, I64);
-    declare_instr!(F32Const, f32_const, F32);
-    declare_instr!(F64Const, f64_const, F64);
-    declare_instr!(V128Const, v128_const, V128);
+    declare_instr!(_, I32Const, i32_const, I32);
+    declare_instr!(_, I64Const, i64_const, I64);
+    declare_instr!(_, F32Const, f32_const, F32);
+    declare_instr!(_, F64Const, f64_const, F64);
+    declare_instr!(_, V128Const, v128_const, V128);
 }
 
 macro_rules! emit_const {

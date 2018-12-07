@@ -5,7 +5,7 @@ use llvm_sys::prelude::{LLVMDIBuilderRef, LLVMMetadataRef, LLVMModuleRef};
 use std::ffi::CString;
 use std::rc::Rc;
 use wasm::Module as WASMModule;
-use wasm::{self, FunctionType, ValueType};
+use wasm::{self, Entry, FunctionType, ValueType};
 
 define_type_wrapper!(pub Module, LLVMModuleRef);
 // type Function = super::LLVMWrapper<
@@ -167,7 +167,7 @@ impl ModuleCodeGen {
                     .create_imported_constant(s.as_str(), ctx.i8_type)
                     .get_ptr_to_int(ctx.iptr_type);
 
-                let func_type = wasm_module.get_func_type(wasm_func.type_index());
+                let func_type = wasm_func.get_type();
                 let llvm_type = get_function_type(ctx, func_type);
                 let ll_func = module.add_function(s.as_str(), llvm_type);
                 // func.set_prefix_data(common::const_array(

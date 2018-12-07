@@ -25,7 +25,7 @@ impl VariableInstrEmit for FunctionCodeGen {
     }
 
     fn get_global(&mut self, ctx: &ContextCodeGen, index: u32) {
-        unimplemented!()
+        // let 
         // self.module.get_wasm_module();
     }
 }

@@ -1,6 +1,8 @@
 use super::BlockType;
 use std::convert::From;
 
+pub trait Type {}
+
 #[derive(Copy, Clone, Debug)]
 pub enum ValueType {
     None = 0,
@@ -20,6 +22,8 @@ impl Default for ValueType {
         ValueType::None
     }
 }
+
+impl Type for ValueType {}
 
 impl ValueType {
     pub const LENGTH: usize = 10;
@@ -46,8 +50,6 @@ impl From<BlockType> for ValueType {
     }
 }
 
-pub trait NativeType {}
-
 define_type_wrapper!(pub I32, i32);
 define_type_wrapper!(pub I64, i64);
 define_type_wrapper!(pub F32, f32);
@@ -65,11 +67,11 @@ pub union V128 {
     u64x2: [u64; 2],
 }
 
-impl NativeType for I32 {}
-impl NativeType for I64 {}
-impl NativeType for F32 {}
-impl NativeType for F64 {}
-impl NativeType for V128 {}
+impl Type for I32 {}
+impl Type for I64 {}
+impl Type for F32 {}
+impl Type for F64 {}
+impl Type for V128 {}
 
 impl From<u32> for F32 {
     fn from(v: u32) -> F32 {
@@ -99,11 +101,13 @@ impl From<Box<[u8; 16]>> for V128 {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct FunctionType {
     res: Option<ValueType>,
     params: Vec<ValueType>,
 }
+
+impl Type for FunctionType {}
 
 impl From<parity_wasm::elements::FunctionType> for FunctionType {
     fn from(func_type: parity_wasm::elements::FunctionType) -> Self {

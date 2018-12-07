@@ -3,35 +3,45 @@ mod imports;
 pub mod types;
 
 pub use self::types::FunctionType;
+pub use self::types::Type;
 pub use self::types::ValueType;
 pub use parity_wasm::elements::BlockType;
 pub use parity_wasm::elements::BrTableData;
-pub use parity_wasm::elements::ImportEntry;
 pub use parity_wasm::elements::Instruction;
 pub use parity_wasm::elements::Instructions;
+use std::ops::Index;
+
 // pub use parity_wasm::elements::Module;
 // pub use parity_wasm::elements::Type;
+pub trait Entry<T: Type> {
+    fn get_type(&self) -> &T;
+}
+
+pub trait Def<T: Type>: Entry<T> {}
 
 #[derive(Debug)]
 pub struct Function {
-    type_index: u32,
+    ty: FunctionType,
     code: Instructions,
 }
 
+impl Entry<FunctionType> for Function {
+    fn get_type(&self) -> &FunctionType {
+        &self.ty
+    }
+}
+impl Def<FunctionType> for Function {}
+
 impl Function {
     pub fn new(
+        func_types: &Vec<FunctionType>,
         func_def: parity_wasm::elements::Func,
         func_body: parity_wasm::elements::FuncBody,
     ) -> Self {
         Self {
-            type_index: func_def.type_ref(),
+            ty: func_types[func_def.type_ref() as usize].clone(),
             code: func_body.code().clone(),
         }
-    }
-
-    #[inline]
-    pub fn type_index(&self) -> u32 {
-        self.type_index
     }
 
     pub fn instructions(&self) -> &[Instruction] {
@@ -39,30 +49,75 @@ impl Function {
     }
 }
 
-pub trait Import {}
+// pub type FunctionImport = u32;
+// pub type GlobalImport = parity_wasm::elements::GlobalType;
 
-pub type FunctionImport = u32;
-pub type GlobalImport = parity_wasm::elements::GlobalType;
+// impl Entry<ValueType> for GlobalImport {
+//     fn get_type(&self) -> &ValueType {
+//         &ValueType::from(self.content_type())
+//     }
+// }
 
-impl Import for FunctionImport {}
-impl Import for GlobalImport {}
+struct Import<T: types::Type>(T);
+impl<T: Type> Entry<T> for Import<T> {
+    fn get_type(&self) -> &T {
+        &self.0
+    }
+}
 
-pub struct CombinedDeclear<T, U: Import> {
+pub struct CombinedDeclear<T: Def<U>, U: Type> {
     defines: Vec<T>,
-    imports: Vec<U>,
+    imports: Vec<Import<U>>,
+}
+
+// impl<T: DeclearEntry, U: ImportEntry> Index<usize> for CombinedDeclear<T, U> {
+//     type Output = Entry;
+
+//     fn index(&self, index: usize) -> &Entry {
+//         if index < self.defines.len() {
+//             &self.imports[index]
+//         } else {
+//             &self.defines[index - self.defines.len()]
+//         }
+//     }
+
+impl<T: Def<U>, U: Type> CombinedDeclear<T, U> {
+    fn len(&self) -> usize {
+        self.defines.len() + self.imports.len()
+    }
+
+    fn index(&self, index: usize) -> &Entry<U> {
+        if index < self.defines.len() {
+            &self.imports[index]
+        } else {
+            &self.defines[index - self.defines.len()]
+        }
+    }
 }
 
 pub struct Memory;
 pub struct Table;
-pub struct Type;
-pub type Global = parity_wasm::elements::GlobalEntry;
 
-pub struct ImportSection {}
+pub struct Global(ValueType);
+
+impl From<parity_wasm::elements::GlobalEntry> for Global {
+    fn from(v: parity_wasm::elements::GlobalEntry) -> Global {
+        Global(ValueType::from(v.global_type().content_type()))
+    }
+}
+
+impl Entry<ValueType> for Global {
+    fn get_type(&self) -> &ValueType {
+        &self.0
+    }
+}
+
+impl Def<ValueType> for Global {}
 
 pub struct Module {
     types: Vec<FunctionType>,
-    functions: CombinedDeclear<Function, FunctionImport>,
-    globals: CombinedDeclear<Global, GlobalImport>,
+    functions: CombinedDeclear<Function, FunctionType>,
+    globals: CombinedDeclear<Global, ValueType>,
 }
 
 impl From<parity_wasm::elements::Module> for Module {
@@ -90,12 +145,17 @@ impl From<parity_wasm::elements::Module> for Module {
                         None
                     }
                 })
+                .map(|t| Import(ValueType::from(t.content_type())))
                 .collect(),
         };
 
         let global_defs = match module.global_section() {
-            None => &[],
-            Some(section) => section.entries(),
+            None => vec![],
+            Some(section) => section
+                .entries()
+                .iter()
+                .map(|t| Global::from(t.clone()))
+                .collect(),
         };
 
         let func_defs = match module.function_section() {
@@ -104,7 +164,7 @@ impl From<parity_wasm::elements::Module> for Module {
         };
 
         let func_imports = match module.import_section() {
-            None => Vec::new(),
+            None => vec![],
             Some(section) => section
                 .entries()
                 .iter()
@@ -115,6 +175,7 @@ impl From<parity_wasm::elements::Module> for Module {
                         None
                     }
                 })
+                .map(|t| Import(func_types[t as usize].clone()))
                 .collect(),
         };
 
@@ -128,7 +189,7 @@ impl From<parity_wasm::elements::Module> for Module {
         let functions = func_defs
             .iter()
             .zip(func_bodys.iter())
-            .map(|(def, body)| Function::new(*def, body.clone()))
+            .map(|(def, body)| Function::new(&func_types, *def, body.clone()))
             .collect();
 
         Self {
@@ -138,7 +199,7 @@ impl From<parity_wasm::elements::Module> for Module {
                 imports: func_imports,
             },
             globals: CombinedDeclear {
-                defines: global_defs.to_vec(),
+                defines: global_defs,
                 imports: global_imports,
             },
         }
@@ -157,7 +218,7 @@ impl Module {
     }
 
     #[inline]
-    pub fn functions(&self) -> &CombinedDeclear<Function, FunctionImport> {
+    pub fn functions(&self) -> &CombinedDeclear<Function, FunctionType> {
         &self.functions
     }
 

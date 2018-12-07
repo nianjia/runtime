@@ -3,7 +3,7 @@ use super::FunctionCodeGen;
 use wasm::types::*;
 
 #[repr(C)]
-struct LiteralImm<T: NativeType>(T);
+struct LiteralImm<T: Type>(T);
 
 pub trait NumericInstrEmit {
     declare_numeric_instrs!(declear_op, _);

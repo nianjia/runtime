@@ -1,9 +1,7 @@
 use super::{ContextCodeGen, FunctionCodeGen};
 
-trait VariableInstrEmit {
-    declare_instr!(_, GetLocal, get_local, u32);
-    declare_instr!(_, SetLocal, set_local, u32);
-    declare_instr!(_, GetGlobal, get_global, u32);
+pub trait VariableInstrEmit {
+    declare_variable_instrs!(declear_op, _);
 }
 
 impl VariableInstrEmit for FunctionCodeGen {

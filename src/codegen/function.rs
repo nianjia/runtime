@@ -1,7 +1,7 @@
-use super::control::ControlInstrEmit;
 use super::{
-    context::ContextCodeGen, module::ModuleCodeGen, BasicBlock, CodeGen, ContorlContextType,
-    ControlContext, PHINode, Type, Value,
+    context::ContextCodeGen, control::ControlInstrEmit, module::ModuleCodeGen,
+    numeric::NumericInstrEmit, variable::VariableInstrEmit, BasicBlock, CodeGen,
+    ContorlContextType, ControlContext, PHINode, Type, Value,
 };
 use libc::c_uint;
 use llvm_sys::prelude::{LLVMBuilderRef, LLVMValueRef};
@@ -12,8 +12,8 @@ use std::ptr::null;
 use std::rc::Rc;
 use wasm::{Function as WASMFunction, FunctionType, Instruction, ValueType};
 
-define_llvm_wrapper!(pub Builder, LLVMBuilderRef);
-define_llvm_wrapper!(pub Function, LLVMValueRef);
+define_type_wrapper!(pub Builder, LLVMBuilderRef);
+define_type_wrapper!(pub Function, LLVMValueRef);
 
 fn test_instruction(t: Instruction) {}
 
@@ -23,7 +23,7 @@ impl Function {
     }
 }
 
-define_llvm_wrapper!(pub SwitchInst, LLVMValueRef);
+define_type_wrapper!(pub SwitchInst, LLVMValueRef);
 
 impl SwitchInst {
     pub fn add_case<'a>(&self, on_val: Value, dest: BasicBlock) {
@@ -278,7 +278,7 @@ impl FunctionCodeGen {
 
         wasm_func.instructions().iter().for_each(|t| {
             println!("{:?}", *t);
-            declare_control_instrs!(decode_instr, (self, ctx, t.clone()));
+            declear_instrs!(decode_instr, (self, ctx, t.clone()));
             unimplemented!()
         });
         // self.init_context_variable(params[0]);

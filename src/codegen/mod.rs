@@ -1,39 +1,3 @@
-macro_rules! __define_llvm_wrapper_internal {
-    (($($vis:tt)*) $name:ident, $llvm:ident) => {
-        #[derive(Clone, Copy)]
-        $($vis)* struct $name($llvm);
-
-        impl std::ops::Deref for $name {
-            type Target = $llvm;
-
-            fn deref(&self) -> &$llvm {
-                &self.0
-            }
-        }
-
-        impl std::ops::DerefMut for $name {
-            fn deref_mut(&mut self) -> &mut $llvm {
-                &mut self.0
-            }
-        }
-
-        impl From<$llvm> for $name {
-            fn from(inner: $llvm) -> Self {
-                $name(inner)
-            }
-        }
-    };
-}
-
-macro_rules! define_llvm_wrapper {
-    (pub $name:ident, $llvm:ident) => {
-        __define_llvm_wrapper_internal!((pub) $name, $llvm);
-    };
-    ($name:ident, $llvm:ident) => {
-        __define_llvm_wrapper_internal!(() $name, $llvm);
-    };
-}
-
 #[macro_use]
 mod macros;
 mod _type;
@@ -61,8 +25,8 @@ use wasm::ValueType;
 
 use wasm::Module as WASMModule;
 
-define_llvm_wrapper!(pub Metadata, LLVMMetadataRef);
-define_llvm_wrapper!(pub PHINode, LLVMValueRef);
+define_type_wrapper!(pub Metadata, LLVMMetadataRef);
+define_type_wrapper!(pub PHINode, LLVMValueRef);
 
 impl PHINode {
     #[inline]
@@ -143,7 +107,7 @@ impl ControlContext {
     }
 }
 
-define_llvm_wrapper!(pub BasicBlock, LLVMBasicBlockRef);
+define_type_wrapper!(pub BasicBlock, LLVMBasicBlockRef);
 
 impl BasicBlock {
     pub fn move_after(&self, move_pos: BasicBlock) {

@@ -19,7 +19,7 @@ lazy_static! {
     };
 }
 
-define_llvm_wrapper!(pub Context, LLVMContextRef);
+define_type_wrapper!(pub Context, LLVMContextRef);
 
 pub struct ContextCodeGen {
     pub ctx: Context,

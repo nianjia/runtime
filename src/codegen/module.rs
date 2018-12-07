@@ -7,7 +7,7 @@ use std::rc::Rc;
 use wasm::Module as WASMModule;
 use wasm::{self, FunctionType, ValueType};
 
-define_llvm_wrapper!(pub Module, LLVMModuleRef);
+define_type_wrapper!(pub Module, LLVMModuleRef);
 // type Function = super::LLVMWrapper<
 
 impl Module {

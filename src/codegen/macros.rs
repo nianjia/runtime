@@ -19,12 +19,36 @@ macro_rules! decode_instr {
     };
 }
 
-macro_rules! declare_instr {
+macro_rules! declear_op {
     ($var:tt, $instr:ident, $name:ident) => {
         fn $name(&mut self, &$crate::codegen::ContextCodeGen);
     };
     ($var:tt, $instr:ident, $name:ident, $($args:tt)*) => {
         fn $name(&mut self, &$crate::codegen::ContextCodeGen, $($args)*);
+    };
+}
+
+macro_rules! declare_variable_instrs {
+    ($op:ident) => {
+        declare_variable_instrs!($op, _);
+    };
+    ($op:ident, $var:tt) => {
+        $op!($var, GetLocal, get_local, u32);
+        $op!($var, SetLocal, set_local, u32);
+        $op!($var, GetGlobal, get_global, u32);
+    };
+}
+
+macro_rules! declare_numeric_instrs {
+    ($op:ident) => {
+        declare_numeric_instrs!($op, _);
+    };
+    ($op:ident, $var:tt) => {
+        $op!($var, I32Const, i32_const, i32);
+        $op!($var, I64Const, i64_const, i64);
+        $op!($var, F32Const, f32_const, u32);
+        $op!($var, F64Const, f64_const, u64);
+        $op!($var, V128Const, v128_const, Box::<[u8; 16]>);
     };
 }
 
@@ -51,8 +75,13 @@ macro_rules! declare_control_instrs {
     };
 }
 
-// macro_rules! declare_numeric_instr {
-//     ($name:ident, $type:ty) => {
-//         declare_instr!($name, $name, LiteralImm<$type>);
-//     };
-// }
+macro_rules! declear_instrs {
+    ($op:ident) => {
+        declear_instrs!($op, _);
+    };
+    ($op:ident, $var:tt) => {
+        declare_control_instrs!($op, $var);
+        declare_numeric_instrs!($op, $var);
+        declare_variable_instrs!($op, $var);
+    };
+}

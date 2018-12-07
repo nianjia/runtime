@@ -16,25 +16,37 @@ pub trait Literal {
 
 impl Literal for I32 {
     fn emit_const(&self, ctx: &ContextCodeGen) -> Value {
-        unsafe { Value::from(llvm_sys::core::LLVMConstInt(*ctx.i32_type, *self as u64, 0)) }
+        unsafe {
+            Value::from(llvm_sys::core::LLVMConstInt(
+                *ctx.i32_type,
+                **self as u64,
+                0,
+            ))
+        }
     }
 }
 
 impl Literal for I64 {
     fn emit_const(&self, ctx: &ContextCodeGen) -> Value {
-        unsafe { Value::from(llvm_sys::core::LLVMConstInt(*ctx.i64_type, *self as u64, 0)) }
+        unsafe {
+            Value::from(llvm_sys::core::LLVMConstInt(
+                *ctx.i64_type,
+                **self as u64,
+                0,
+            ))
+        }
     }
 }
 
 impl Literal for F32 {
     fn emit_const(&self, ctx: &ContextCodeGen) -> Value {
-        unsafe { Value::from(llvm_sys::core::LLVMConstReal(*ctx.f32_type, *self as f64)) }
+        unsafe { Value::from(llvm_sys::core::LLVMConstReal(*ctx.f32_type, **self as f64)) }
     }
 }
 
 impl Literal for F64 {
     fn emit_const(&self, ctx: &ContextCodeGen) -> Value {
-        unsafe { Value::from(llvm_sys::core::LLVMConstReal(*ctx.f64_type, *self)) }
+        unsafe { Value::from(llvm_sys::core::LLVMConstReal(*ctx.f64_type, **self)) }
     }
 }
 

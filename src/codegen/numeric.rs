@@ -5,27 +5,23 @@ use wasm::types::*;
 #[repr(C)]
 struct LiteralImm<T: NativeType>(T);
 
-trait NumericInstrEmit {
-    declare_instr!(_, I32Const, i32_const, I32);
-    declare_instr!(_, I64Const, i64_const, I64);
-    declare_instr!(_, F32Const, f32_const, F32);
-    declare_instr!(_, F64Const, f64_const, F64);
-    declare_instr!(_, V128Const, v128_const, V128);
+pub trait NumericInstrEmit {
+    declare_numeric_instrs!(declear_op, _);
 }
 
 macro_rules! emit_const {
-    ($name:ident, $type:ty) => {
-        fn $name(&mut self, ctx: &$crate::codegen::ContextCodeGen, imm: $type) {
-            let const_val = imm.emit_const(ctx);
+    ($name:ident, $arg_type:ty, $type:tt) => {
+        fn $name(&mut self, ctx: &$crate::codegen::ContextCodeGen, imm: $arg_type) {
+            let const_val = $crate::wasm::types::$type::from(imm).emit_const(ctx);
             self.push(const_val);
         }
     };
 }
 
 impl NumericInstrEmit for FunctionCodeGen {
-    emit_const!(i32_const, I32);
-    emit_const!(i64_const, I64);
-    emit_const!(f32_const, F32);
-    emit_const!(f64_const, F64);
-    emit_const!(v128_const, V128);
+    emit_const!(i32_const, i32, I32);
+    emit_const!(i64_const, i64, I64);
+    emit_const!(f32_const, u32, F32);
+    emit_const!(f64_const, u64, F64);
+    emit_const!(v128_const, Box<[u8; 16]>, V128);
 }

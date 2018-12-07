@@ -6,7 +6,7 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 
-define_llvm_wrapper!(pub Value, LLVMValueRef);
+define_type_wrapper!(pub Value, LLVMValueRef);
 
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {

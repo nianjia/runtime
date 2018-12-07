@@ -5,7 +5,7 @@ use llvm_sys::prelude::{LLVMContextRef, LLVMTypeRef};
 use std::ffi::CString;
 use std::ops::Deref;
 
-define_llvm_wrapper!(pub Type, LLVMTypeRef);
+define_type_wrapper!(pub Type, LLVMTypeRef);
 
 impl Type {
     pub fn void(ctx: LLVMContextRef) -> Self {

@@ -48,10 +48,10 @@ impl From<BlockType> for ValueType {
 
 pub trait NativeType {}
 
-pub type I32 = i32;
-pub type I64 = i64;
-pub type F32 = f32;
-pub type F64 = f64;
+define_type_wrapper!(pub I32, i32);
+define_type_wrapper!(pub I64, i64);
+define_type_wrapper!(pub F32, f32);
+define_type_wrapper!(pub F64, f64);
 
 #[repr(C, align(16))]
 pub union V128 {
@@ -71,6 +71,18 @@ impl NativeType for F32 {}
 impl NativeType for F64 {}
 impl NativeType for V128 {}
 
+impl From<u32> for F32 {
+    fn from(v: u32) -> F32 {
+        F32(v as f32)
+    }
+}
+
+impl From<u64> for F64 {
+    fn from(v: u64) -> F64 {
+        F64(v as f64)
+    }
+}
+
 impl V128 {
     pub fn zero() -> Self {
         Self { i8x16: [0; 16] }
@@ -78,6 +90,12 @@ impl V128 {
 
     pub fn into_u64x2(&self) -> [u64; 2] {
         unsafe { self.u64x2 }
+    }
+}
+
+impl From<Box<[u8; 16]>> for V128 {
+    fn from(v: Box<[u8; 16]>) -> Self {
+        Self { u8x16: *v }
     }
 }
 

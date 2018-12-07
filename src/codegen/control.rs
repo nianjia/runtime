@@ -6,7 +6,7 @@ use std::rc::Rc;
 use wasm::{BlockType, BrTableData, FunctionType, ValueType};
 
 pub trait ControlInstrEmit {
-    declare_control_instrs!(declare_instr);
+    declare_control_instrs!(declear_op);
 }
 
 impl ControlInstrEmit for FunctionCodeGen {

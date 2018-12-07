@@ -5,13 +5,13 @@ pub mod types;
 pub use self::types::FunctionType;
 pub use self::types::ValueType;
 pub use parity_wasm::elements::BlockType;
+pub use parity_wasm::elements::BrTableData;
 pub use parity_wasm::elements::Instruction;
 pub use parity_wasm::elements::Instructions;
-pub use parity_wasm::elements::BrTableData;
 // pub use parity_wasm::elements::Module;
 // pub use parity_wasm::elements::Type;
 
-
+#[derive(Debug)]
 pub struct Function {
     type_index: u32,
     code: Instructions,

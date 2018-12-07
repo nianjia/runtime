@@ -83,16 +83,16 @@ impl V128 {
 
 #[derive(Clone, Default)]
 pub struct FunctionType {
-    res: ValueType,
+    res: Option<ValueType>,
     params: Vec<ValueType>,
 }
 
 impl From<parity_wasm::elements::FunctionType> for FunctionType {
     fn from(func_type: parity_wasm::elements::FunctionType) -> Self {
         let res = if let Some(res_type) = func_type.return_type() {
-            ValueType::from(res_type)
+            Some(ValueType::from(res_type))
         } else {
-            ValueType::None
+            None
         };
         let params = func_type
             .params()
@@ -105,7 +105,7 @@ impl From<parity_wasm::elements::FunctionType> for FunctionType {
 }
 
 impl FunctionType {
-    pub fn res(&self) -> ValueType {
+    pub fn res(&self) -> Option<ValueType> {
         self.res
     }
 

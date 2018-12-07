@@ -118,7 +118,7 @@ impl Builder {
 pub struct BranchTarget {
     // pub(in codegen) param_types: Vec<ValueType>,
     pub(in codegen) block: BasicBlock,
-    pub(in codegen) type_PHIs: Vec<(ValueType, PHINode)>,
+    pub(in codegen) type_PHIs: Option<(ValueType, PHINode)>,
 }
 
 pub struct FunctionCodeGen {
@@ -180,35 +180,32 @@ impl FunctionCodeGen {
         &self,
         ctx: &ContextCodeGen,
         block: BasicBlock,
-        types: &[ValueType],
-    ) -> Vec<PHINode> {
+        res_type: ValueType,
+    ) -> PHINode {
         let origin_block = ctx.get_builder().get_insert_block();
         ctx.get_builder().set_insert_block(block);
-        let ret = types
-            .iter()
-            .map(|t| self.builder.create_phi(ctx.get_basic_type(*t)))
-            .collect::<Vec<_>>();
-        // if let Some(block) = origin_block {
+
+        let ret = self.builder.create_phi(ctx.get_basic_type(res_type));
         self.builder.set_insert_block(origin_block);
-        // }
         ret
     }
 
     fn create_ret_block(&mut self, ctx: &ContextCodeGen) {
         let ret_block = ctx.create_basic_block("return", self);
-        let ret_ty = self.func_ty.res();
-        let PHIs = self.create_PHIs(ctx, ret_block, &[ret_ty]);
+        let res_type = self.func_ty.res().map(From::from);
+        let end_PHIs = res_type.map(|ty| self.create_PHIs(ctx, ret_block, ty));
+
         self.push_control_stack(
             ContorlContextType::Function,
-            vec![ret_ty],
+            res_type,
             ret_block,
-            PHIs.clone(),
+            end_PHIs,
             None,
         );
         self.branch_target_stack.push(BranchTarget {
             // param_types: vec![ret_ty],
             block: ret_block,
-            type_PHIs: vec![(ret_ty, *PHIs.first().unwrap())],
+            type_PHIs: res_type.map(|ty| (ty, end_PHIs.unwrap())),
         })
     }
 
@@ -280,6 +277,7 @@ impl FunctionCodeGen {
             });
 
         wasm_func.instructions().iter().for_each(|t| {
+            println!("{:?}", *t);
             declare_control_instrs!(decode_instr, (self, ctx, t.clone()));
             unimplemented!()
         });
@@ -312,9 +310,9 @@ impl FunctionCodeGen {
     pub fn push_control_stack(
         &mut self,
         ty: ContorlContextType,
-        res_types: Vec<ValueType>,
+        res_types: Option<ValueType>,
         end_block: BasicBlock,
-        end_PHIs: Vec<PHINode>,
+        end_PHIs: Option<PHINode>,
         else_block: Option<BasicBlock>,
     ) {
         self.control_stack.push(ControlContext::new(
@@ -329,24 +327,24 @@ impl FunctionCodeGen {
     }
 
     pub fn branch_to_end_of_control_context(&mut self, ctx: &ContextCodeGen) {
-        let (end_block, PHIs) = {
+        let (end_block, end_PHIs) = {
             let cur_ctx = self.control_stack.last().unwrap();
 
             if cur_ctx.is_reachable() {
-                (cur_ctx.end_block, cur_ctx.end_PHIs.clone())
+                (cur_ctx.end_block, cur_ctx.end_PHIs)
             } else {
                 return;
             }
         };
 
-        PHIs.into_iter().for_each(|t| {
+        if let Some(PHI) = end_PHIs {
             let res = self.stack.pop().unwrap();
-            t.add_incoming(
+            PHI.add_incoming(
                 ctx.coerce_to_canonical_type(self.builder, res),
                 // TODO: handle the None value of insert block
                 self.builder.get_insert_block(),
             );
-        });
+        }
 
         self.builder.create_br_instr(end_block);
     }

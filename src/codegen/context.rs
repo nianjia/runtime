@@ -39,7 +39,7 @@ pub struct ContextCodeGen {
     f64x2_type: Type,
     exception_pointer_struct_type: Type,
     anyref_type: Type,
-    typed_zero_constants: [Value; ValueType::LENGTH],
+    pub typed_zero_constants: [Value; ValueType::LENGTH],
     value_types: [Type; ValueType::LENGTH],
     builder: Builder,
 }

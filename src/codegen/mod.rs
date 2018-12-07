@@ -76,6 +76,10 @@ impl PHINode {
     pub fn count_incoming(&self) -> u32 {
         unsafe { llvm_sys::core::LLVMCountIncoming(self.0) }
     }
+
+    pub fn erase_from_parent(self) {
+        unsafe { llvm_sys::core::LLVMDeleteGlobal(self.0) }
+    }
 }
 
 pub fn emit_module() -> Vec<u8> {
@@ -101,10 +105,10 @@ pub enum ContorlContextType {
 pub(in codegen) struct ControlContext {
     pub ty: ContorlContextType,
     pub end_block: BasicBlock,
-    pub end_PHIs: Vec<PHINode>,
+    pub end_PHIs: Option<PHINode>,
     else_block: Option<BasicBlock>,
     pub else_args: Vec<Value>,
-    pub res_types: Vec<ValueType>,
+    pub res_types: Option<ValueType>,
     pub(in codegen) outer_stack_size: usize,
     outer_branch_target_stack_size: usize,
     pub is_reachable: bool,
@@ -113,9 +117,9 @@ pub(in codegen) struct ControlContext {
 impl ControlContext {
     pub fn new(
         ty: ContorlContextType,
-        res_types: Vec<ValueType>,
+        res_types: Option<ValueType>,
         end_block: BasicBlock,
-        end_PHIs: Vec<PHINode>,
+        end_PHIs: Option<PHINode>,
         else_block: Option<BasicBlock>,
         stack_size: usize,
         branch_target_stack_size: usize,
@@ -146,6 +150,10 @@ impl BasicBlock {
         unsafe {
             llvm_sys::core::LLVMMoveBasicBlockAfter(self.0, move_pos.0);
         }
+    }
+
+    pub fn erase_from_parent(self) {
+        unsafe { llvm_sys::core::LLVMDeleteBasicBlock(self.0) }
     }
 }
 

@@ -37,4 +37,8 @@ impl Value {
     pub fn get_type(&self) -> Type {
         Type::from(unsafe { llvm_sys::core::LLVMTypeOf(self.0) })
     }
+
+    pub fn erase_from_parent(self) {
+        unsafe { llvm_sys::core::LLVMDeleteGlobal(self.0) }
+    }
 }

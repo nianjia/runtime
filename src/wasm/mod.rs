@@ -6,6 +6,7 @@ pub use self::types::FunctionType;
 pub use self::types::ValueType;
 pub use parity_wasm::elements::BlockType;
 pub use parity_wasm::elements::BrTableData;
+pub use parity_wasm::elements::ImportEntry;
 pub use parity_wasm::elements::Instruction;
 pub use parity_wasm::elements::Instructions;
 // pub use parity_wasm::elements::Module;
@@ -38,13 +39,30 @@ impl Function {
     }
 }
 
+pub trait Import {}
+
+pub type FunctionImport = u32;
+pub type GlobalImport = parity_wasm::elements::GlobalType;
+
+impl Import for FunctionImport {}
+impl Import for GlobalImport {}
+
+pub struct CombinedDeclear<T, U: Import> {
+    defines: Vec<T>,
+    imports: Vec<U>,
+}
+
 pub struct Memory;
 pub struct Table;
 pub struct Type;
+pub type Global = parity_wasm::elements::GlobalEntry;
+
+pub struct ImportSection {}
 
 pub struct Module {
     types: Vec<FunctionType>,
-    functions: Vec<Function>,
+    functions: CombinedDeclear<Function, FunctionImport>,
+    globals: CombinedDeclear<Global, GlobalImport>,
 }
 
 impl From<parity_wasm::elements::Module> for Module {
@@ -60,9 +78,44 @@ impl From<parity_wasm::elements::Module> for Module {
                 .collect(),
         };
 
+        let global_imports = match module.import_section() {
+            None => Vec::new(),
+            Some(section) => section
+                .entries()
+                .iter()
+                .filter_map(|t| {
+                    if let parity_wasm::elements::External::Global(global_ty) = t.external() {
+                        Some(*global_ty)
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
+        };
+
+        let global_defs = match module.global_section() {
+            None => &[],
+            Some(section) => section.entries(),
+        };
+
         let func_defs = match module.function_section() {
             None => &[],
             Some(section) => section.entries(),
+        };
+
+        let func_imports = match module.import_section() {
+            None => Vec::new(),
+            Some(section) => section
+                .entries()
+                .iter()
+                .filter_map(|t| {
+                    if let parity_wasm::elements::External::Function(index) = t.external() {
+                        Some(*index)
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
         };
 
         let func_bodys = match module.code_section() {
@@ -80,7 +133,14 @@ impl From<parity_wasm::elements::Module> for Module {
 
         Self {
             types: func_types,
-            functions,
+            functions: CombinedDeclear {
+                defines: functions,
+                imports: func_imports,
+            },
+            globals: CombinedDeclear {
+                defines: global_defs.to_vec(),
+                imports: global_imports,
+            },
         }
     }
 }
@@ -97,7 +157,12 @@ impl Module {
     }
 
     #[inline]
-    pub fn functions(&self) -> &[Function] {
+    pub fn functions(&self) -> &CombinedDeclear<Function, FunctionImport> {
         &self.functions
+    }
+
+    #[inline]
+    pub fn function_defs(&self) -> &[Function] {
+        &self.functions.defines
     }
 }

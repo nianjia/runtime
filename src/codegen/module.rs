@@ -158,7 +158,7 @@ impl ModuleCodeGen {
         let personality_func =
             module.add_function("__gxx_personality_v0", Type::func(&[], ctx.i32_type));
         wasm_module
-            .functions()
+            .function_defs()
             .iter()
             .enumerate()
             .for_each(|(i, wasm_func)| {

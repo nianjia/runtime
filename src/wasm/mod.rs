@@ -3,16 +3,14 @@ mod imports;
 pub mod types;
 
 pub use self::types::FunctionType;
-pub use self::types::Type;
 pub use self::types::ValueType;
+use self::types::{GlobalType, Type};
 pub use parity_wasm::elements::BlockType;
 pub use parity_wasm::elements::BrTableData;
 pub use parity_wasm::elements::Instruction;
 pub use parity_wasm::elements::Instructions;
 use std::ops::Index;
 
-// pub use parity_wasm::elements::Module;
-// pub use parity_wasm::elements::Type;
 pub trait Entry<T: Type> {
     fn get_type(&self) -> &T;
 }
@@ -49,15 +47,6 @@ impl Function {
     }
 }
 
-// pub type FunctionImport = u32;
-// pub type GlobalImport = parity_wasm::elements::GlobalType;
-
-// impl Entry<ValueType> for GlobalImport {
-//     fn get_type(&self) -> &ValueType {
-//         &ValueType::from(self.content_type())
-//     }
-// }
-
 struct Import<T: types::Type>(T);
 impl<T: Type> Entry<T> for Import<T> {
     fn get_type(&self) -> &T {
@@ -70,54 +59,58 @@ pub struct CombinedDeclear<T: Def<U>, U: Type> {
     imports: Vec<Import<U>>,
 }
 
-// impl<T: DeclearEntry, U: ImportEntry> Index<usize> for CombinedDeclear<T, U> {
-//     type Output = Entry;
-
-//     fn index(&self, index: usize) -> &Entry {
-//         if index < self.defines.len() {
-//             &self.imports[index]
-//         } else {
-//             &self.defines[index - self.defines.len()]
-//         }
-//     }
-
 impl<T: Def<U>, U: Type> CombinedDeclear<T, U> {
     fn len(&self) -> usize {
         self.defines.len() + self.imports.len()
     }
 
-    fn index(&self, index: usize) -> &Entry<U> {
-        if index < self.defines.len() {
-            &self.imports[index]
+    pub fn get_type(&self, index: usize) -> &U {
+        let len = self.defines.len();
+        if index < len {
+            &self.imports[index].get_type()
         } else {
-            &self.defines[index - self.defines.len()]
+            &self.defines[index - len].get_type()
         }
+    }
+
+    pub fn is_import(&self, index: usize) -> bool {
+        let len = self.imports.len();
+        if index < len {
+            true
+        } else if index < self.defines.len() + len {
+            false
+        } else {
+            unreachable!()
+        }
+    }
+
+    pub fn is_define(&self, index: usize) -> bool {
+        self.is_import(index)
     }
 }
 
 pub struct Memory;
 pub struct Table;
 
-pub struct Global(ValueType);
+pub struct Global(GlobalType);
 
 impl From<parity_wasm::elements::GlobalEntry> for Global {
     fn from(v: parity_wasm::elements::GlobalEntry) -> Global {
-        Global(ValueType::from(v.global_type().content_type()))
+        Global(GlobalType::from(*v.global_type()))
     }
 }
 
-impl Entry<ValueType> for Global {
-    fn get_type(&self) -> &ValueType {
+impl Entry<GlobalType> for Global {
+    fn get_type(&self) -> &GlobalType {
         &self.0
     }
 }
-
-impl Def<ValueType> for Global {}
+impl Def<GlobalType> for Global {}
 
 pub struct Module {
     types: Vec<FunctionType>,
     functions: CombinedDeclear<Function, FunctionType>,
-    globals: CombinedDeclear<Global, ValueType>,
+    globals: CombinedDeclear<Global, GlobalType>,
 }
 
 impl From<parity_wasm::elements::Module> for Module {
@@ -145,7 +138,7 @@ impl From<parity_wasm::elements::Module> for Module {
                         None
                     }
                 })
-                .map(|t| Import(ValueType::from(t.content_type())))
+                .map(|t| Import(GlobalType::from(t)))
                 .collect(),
         };
 
@@ -225,5 +218,9 @@ impl Module {
     #[inline]
     pub fn function_defs(&self) -> &[Function] {
         &self.functions.defines
+    }
+
+    pub fn globals(&self) -> &CombinedDeclear<Global, GlobalType> {
+        &self.globals
     }
 }

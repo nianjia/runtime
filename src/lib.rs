@@ -5,6 +5,7 @@
 #![allow(non_upper_case_globals)]
 #![allow(non_snake_case)]
 #![allow(unused_imports)]
+#![feature(exclusive_range_pattern)]
 #![feature(concat_idents)]
 
 extern crate libc;

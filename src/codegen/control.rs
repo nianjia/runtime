@@ -1,16 +1,25 @@
 use super::common;
 use super::function::BranchTarget;
-use super::{value::Value, ContextCodeGen, ContorlContextType, ControlContext, FunctionCodeGen};
+use super::{
+    value::Value, ContextCodeGen, ContorlContextType, ControlContext, FunctionCodeGen,
+    ModuleCodeGen,
+};
 use llvm_sys::LLVMCallConv;
 use std::rc::Rc;
-use wasm::{BlockType, BrTableData, FunctionType, ValueType};
+use wasm::{BlockType, BrTableData, FunctionType, Module as WASMModule, ValueType};
 
 pub trait ControlInstrEmit {
     declare_control_instrs!(declear_op);
 }
 
 impl ControlInstrEmit for FunctionCodeGen {
-    fn block(&mut self, ctx: &ContextCodeGen, ty: BlockType) {
+    fn block(
+        &mut self,
+        ctx: &ContextCodeGen,
+        wasm_module: &WASMModule,
+        module: &ModuleCodeGen,
+        ty: BlockType,
+    ) {
         let res_type = match ty {
             BlockType::Value(v) => Some(ValueType::from(v)),
             _ => None,
@@ -33,7 +42,13 @@ impl ControlInstrEmit for FunctionCodeGen {
         })
     }
 
-    fn loop_(&mut self, ctx: &ContextCodeGen, ty: BlockType) {
+    fn loop_(
+        &mut self,
+        ctx: &ContextCodeGen,
+        wasm_module: &WASMModule,
+        module: &ModuleCodeGen,
+        ty: BlockType,
+    ) {
         let res_type = match ty {
             BlockType::Value(v) => Some(ValueType::from(v)),
             _ => None,
@@ -44,8 +59,8 @@ impl ControlInstrEmit for FunctionCodeGen {
         let end_block = ctx.create_basic_block("loopEnd", self);
         let end_PHIs = res_type.map(|ty| self.create_PHIs(ctx, end_block, ty));
 
-        ctx.get_builder().create_br_instr(loop_body_block);
-        ctx.get_builder().set_insert_block(loop_body_block);
+        self.builder.create_br_instr(loop_body_block);
+        self.builder.set_insert_block(loop_body_block);
 
         self.push_control_stack(
             ContorlContextType::Loop,
@@ -56,7 +71,13 @@ impl ControlInstrEmit for FunctionCodeGen {
         );
     }
 
-    fn if_(&mut self, ctx: &ContextCodeGen, ty: BlockType) {
+    fn if_(
+        &mut self,
+        ctx: &ContextCodeGen,
+        wasm_module: &WASMModule,
+        module: &ModuleCodeGen,
+        ty: BlockType,
+    ) {
         let res_type = match ty {
             BlockType::Value(v) => Some(ValueType::from(v)),
             _ => None,
@@ -68,7 +89,7 @@ impl ControlInstrEmit for FunctionCodeGen {
         let end_PHIs = res_type.map(|ty| self.create_PHIs(ctx, end_block, ty));
 
         let cond = self.pop();
-        let cond_bool = ctx.coerce_i32_to_bool(ctx.get_builder(), cond);
+        let cond_bool = ctx.coerce_i32_to_bool(self.builder, cond);
         self.builder
             .create_cond_br_instr(cond_bool, then_block, else_block);
 
@@ -89,7 +110,7 @@ impl ControlInstrEmit for FunctionCodeGen {
         });
     }
 
-    fn else_(&mut self, ctx: &ContextCodeGen) {
+    fn else_(&mut self, ctx: &ContextCodeGen, wasm_module: &WASMModule, module: &ModuleCodeGen) {
         assert!(self.control_stack.len() != 0);
 
         self.branch_to_end_of_control_context(ctx);
@@ -110,7 +131,7 @@ impl ControlInstrEmit for FunctionCodeGen {
         cur_ctx.else_block = None;
     }
 
-    fn end(&mut self, ctx: &ContextCodeGen) {
+    fn end(&mut self, ctx: &ContextCodeGen, wasm_module: &WASMModule, module: &ModuleCodeGen) {
         let (PHI, res_type) = {
             assert!(self.control_stack.len() > 0);
 
@@ -160,7 +181,13 @@ impl ControlInstrEmit for FunctionCodeGen {
         // }
     }
 
-    fn br(&mut self, ctx: &ContextCodeGen, depth: u32) {
+    fn br(
+        &mut self,
+        ctx: &ContextCodeGen,
+        wasm_module: &WASMModule,
+        module: &ModuleCodeGen,
+        depth: u32,
+    ) {
         if let Some((ty, PHI)) = self.get_branch_target(depth).type_PHIs {
             let res = self.pop();
             PHI.add_incoming(
@@ -173,7 +200,13 @@ impl ControlInstrEmit for FunctionCodeGen {
             .create_br_instr(self.get_branch_target(depth).block);
     }
 
-    fn br_if(&mut self, ctx: &ContextCodeGen, depth: u32) {
+    fn br_if(
+        &mut self,
+        ctx: &ContextCodeGen,
+        wasm_module: &WASMModule,
+        module: &ModuleCodeGen,
+        depth: u32,
+    ) {
         let cond = self.pop();
         let target = self.get_branch_target(depth);
         if let Some((ty, PHI)) = target.type_PHIs {
@@ -193,7 +226,7 @@ impl ControlInstrEmit for FunctionCodeGen {
         self.builder.set_insert_block(false_block);
     }
 
-    fn return_(&mut self, ctx: &ContextCodeGen) {
+    fn return_(&mut self, ctx: &ContextCodeGen, wasm_module: &WASMModule, module: &ModuleCodeGen) {
         match self.func_ty.res() {
             None => {}
             _ => {
@@ -211,7 +244,13 @@ impl ControlInstrEmit for FunctionCodeGen {
         self.enter_unreachable();
     }
 
-    fn br_table(&mut self, ctx: &ContextCodeGen, data: Box<BrTableData>) {
+    fn br_table(
+        &mut self,
+        ctx: &ContextCodeGen,
+        wasm_module: &WASMModule,
+        module: &ModuleCodeGen,
+        data: Box<BrTableData>,
+    ) {
         let index = self.pop();
         // let num_args = self.get_branch_target(data.default).type_PHIs.len();
         // let args = (0..num_args).map(|_| self.pop()).rev().collect::<Vec<_>>();
@@ -253,7 +292,13 @@ impl ControlInstrEmit for FunctionCodeGen {
         self.enter_unreachable();
     }
 
-    fn call(&mut self, ctx: &ContextCodeGen, index: u32) {
+    fn call(
+        &mut self,
+        ctx: &ContextCodeGen,
+        wasm_module: &WASMModule,
+        module: &ModuleCodeGen,
+        index: u32,
+    ) {
         unimplemented!()
         // let callee_type = self.module.get_function(index).get_func_type();
         // let ll_args = (0..callee_type.params().len())
@@ -273,13 +318,25 @@ impl ControlInstrEmit for FunctionCodeGen {
         // res.iter().for_each(|v| self.push(*v));
     }
 
-    fn unreachable_(&mut self, ctx: &ContextCodeGen) {
+    fn unreachable_(
+        &mut self,
+        ctx: &ContextCodeGen,
+        wasm_module: &WASMModule,
+        module: &ModuleCodeGen,
+    ) {
         self.emit_runtime_intrinsic("unreachableTrap", FunctionType::default(), Vec::new());
         self.builder.create_unreachable();
         self.enter_unreachable();
     }
 
-    fn call_indirect(&mut self, ctx: &ContextCodeGen, ty_index: u32, table_index: u8) {
+    fn call_indirect(
+        &mut self,
+        ctx: &ContextCodeGen,
+        wasm_module: &WASMModule,
+        module: &ModuleCodeGen,
+        ty_index: u32,
+        table_index: u8,
+    ) {
         // let index = self.pop();
         // let func_ty = match self.module.get_wasm_module().type_section() {
         //     Some(section) => section.types()[ty_index as usize].clone(),
@@ -289,13 +346,13 @@ impl ControlInstrEmit for FunctionCodeGen {
         // TODO
     }
 
-    fn nop(&mut self, ctx: &ContextCodeGen) {}
+    fn nop(&mut self, ctx: &ContextCodeGen, wasm_module: &WASMModule, module: &ModuleCodeGen) {}
 
-    fn drop(&mut self, ctx: &ContextCodeGen) {
+    fn drop(&mut self, ctx: &ContextCodeGen, wasm_module: &WASMModule, module: &ModuleCodeGen) {
         self.pop();
     }
 
-    fn select_(&mut self, ctx: &ContextCodeGen) {
+    fn select_(&mut self, ctx: &ContextCodeGen, wasm_module: &WASMModule, module: &ModuleCodeGen) {
         let cond = self.pop();
         let cond_bool = ctx.coerce_i32_to_bool(self.builder, cond);
         let false_value = self.pop();

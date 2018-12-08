@@ -5,6 +5,7 @@ mod common;
 mod context;
 mod control;
 // mod debuginfo;
+mod builder;
 mod function;
 mod module;
 mod numeric;
@@ -12,15 +13,18 @@ mod value;
 mod variable;
 
 pub(self) use self::_type::Type;
+pub(self) use self::builder::Builder;
 pub(self) use self::context::ContextCodeGen;
 pub(self) use self::function::FunctionCodeGen;
 pub(self) use self::module::ModuleCodeGen;
 pub(self) use self::value::Value;
 
+use self::common::Literal;
 use llvm_sys;
 use llvm_sys::prelude::{LLVMBasicBlockRef, LLVMMetadataRef, LLVMValueRef};
 use std::ops::Deref;
 use std::rc::Rc;
+use wasm::types::I64;
 use wasm::ValueType;
 
 use wasm::Module as WASMModule;
@@ -127,4 +131,16 @@ pub fn compile_module(wasm_module: &WASMModule) -> Vec<u8> {
     let llvm_module = module.emit(&ctx, wasm_module);
 
     ctx.compile(llvm_module)
+}
+
+pub fn get_compartment_address(ctx: &ContextCodeGen, builder: Builder, ctx_ptr: Value) -> Value {
+    // Derive the compartment runtime data from the context address by masking off the lower
+    // 32 bits.
+    builder.create_int_to_ptr(
+        builder.create_and(
+            builder.create_ptr_to_int(builder.create_load(ctx_ptr), ctx.i64_type),
+            I64::from(!((1u64 << 32) - 1) as i64).emit_const(ctx),
+        ),
+        ctx.i8_ptr_type,
+    )
 }

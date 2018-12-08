@@ -1,19 +1,19 @@
 macro_rules! decode_instr {
-    (($self:ident, $ctx:expr, $var:expr), $instr:ident, $name:ident) => {
+    (($self:ident, $ctx:expr, $wasm:expr, $mod:expr, $var:expr), $instr:ident, $name:ident) => {
         if let $crate::wasm::Instruction::$instr = $var {
-            $self.$name($ctx);
+            $self.$name($ctx, $wasm, $mod);
             return;
         };
     };
-    (($self:ident, $ctx:expr, $var:expr),$instr:ident, $name:ident, $arg1:expr) => {
+    (($self:ident, $ctx:expr, $wasm:expr, $mod:expr, $var:expr), $instr:ident, $name:ident, $arg1:expr) => {
         if let $crate::wasm::Instruction::$instr(_arg1) = $var {
-            $self.$name($ctx, _arg1);
+            $self.$name($ctx, $wasm, $mod, _arg1);
             return;
         };
     };
-    (($self:ident, $ctx:expr, $var:expr), $instr:ident, $name:ident, $arg1:expr, $arg2:expr) => {
+    (($self:ident, $ctx:expr, $wasm:expr,  $mod:expr, $var:expr), $instr:ident, $name:ident, $arg1:expr, $arg2:expr) => {
         if let $crate::wasm::Instruction::$instr(_arg1, _arg2) = $var {
-            $self.$name($ctx, _arg1, _arg2);
+            $self.$name($ctx, $wasm, $mod, _arg1, _arg2);
             return;
         };
     };
@@ -21,10 +21,17 @@ macro_rules! decode_instr {
 
 macro_rules! declear_op {
     ($var:tt, $instr:ident, $name:ident) => {
-        fn $name(&mut self, &$crate::codegen::ContextCodeGen);
+        fn $name(&mut self, 
+            &$crate::codegen::ContextCodeGen, 
+            &$crate::wasm::Module,  
+            &$crate::codegen::ModuleCodeGen);
     };
     ($var:tt, $instr:ident, $name:ident, $($args:tt)*) => {
-        fn $name(&mut self, &$crate::codegen::ContextCodeGen, $($args)*);
+        fn $name(&mut self, 
+            &$crate::codegen::ContextCodeGen, 
+            &$crate::wasm::Module,  
+            &$crate::codegen::ModuleCodeGen,
+            $($args)*);
     };
 }
 

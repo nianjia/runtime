@@ -1,4 +1,4 @@
-use super::{_type::Type, function::Builder, value::Value, BasicBlock, FunctionCodeGen};
+use super::{_type::Type, value::Value, BasicBlock, Builder, FunctionCodeGen};
 use super::{common, function::Function, module::Module};
 use llvm_sys::prelude::{LLVMContextRef, LLVMModuleRef};
 use llvm_sys::{LLVMCallConv, LLVMTypeKind};
@@ -170,8 +170,8 @@ impl ContextCodeGen {
         }
     }
 
-    pub fn get_builder(&self) -> Builder {
-        self.builder
+    pub fn create_builder(&self) -> Builder {
+        unsafe { Builder::from(llvm_sys::core::LLVMCreateBuilderInContext(*self.ctx)) }
     }
 
     pub fn coerce_i32_to_bool(&self, builder: Builder, v: Value) -> Value {

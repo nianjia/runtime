@@ -30,7 +30,6 @@ impl Module {
 
 pub struct ModuleCodeGen {
     module: Module,
-    // wasm_module: Rc<WASMModule>,
     type_ids: Vec<Value>,
     table_offsets: Vec<Value>,
     memory_offsets: Vec<Value>,
@@ -141,10 +140,10 @@ impl ModuleCodeGen {
     //     self.di_value_types[ty as usize]
     // }
 
-    // #[inline]
-    // pub fn get_function(&self, idx: u32) -> Function {
-    //     self.functions[idx as usize].0
-    // }
+    #[inline]
+    pub fn globals(&self) -> &[Value] {
+        &self.globals
+    }
 
     // #[inline]
     // pub fn get_wasm_module(&self) -> Rc<WASMModule> {
@@ -157,6 +156,7 @@ impl ModuleCodeGen {
         let module = self.module;
         let personality_func =
             module.add_function("__gxx_personality_v0", Type::func(&[], ctx.i32_type));
+
         wasm_module
             .function_defs()
             .iter()
@@ -180,10 +180,11 @@ impl ModuleCodeGen {
                 FunctionCodeGen::new(
                     // rc,
                     ctx,
+                    self,
                     ll_func,
                     func_type.clone(),
                 )
-                .codegen(ctx, wasm_func);
+                .codegen(ctx, wasm_module, self, wasm_func);
             });
         unimplemented!()
     }
@@ -191,6 +192,14 @@ impl ModuleCodeGen {
     // pub fn create_dibuilder(self) -> mut DIBuilder {
     //     unsafe { llvm::LLVMRustDIBuilderCreate(self) }
     // }
+
+    pub fn default_memory_offset(&self) -> Option<Value> {
+        if self.memory_offsets.is_empty() {
+            None
+        } else {
+            Some(self.memory_offsets[0])
+        }
+    }
 }
 
 fn get_function_type(ctx: &ContextCodeGen, wasm_func_type: &wasm::FunctionType) -> Type {

@@ -27,6 +27,16 @@ impl Type for ValueType {}
 
 impl ValueType {
     pub const LENGTH: usize = 10;
+
+    pub fn get_bytes(&self) -> u32 {
+        match self {
+            ValueType::I32 | ValueType::F32 => 4,
+            ValueType::I64 | ValueType::F64 => 8,
+            ValueType::V128 => 16,
+            ValueType::AnyFunc | ValueType::AnyRef | ValueType::NullRef => 8,
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl From<parity_wasm::elements::ValueType> for ValueType {
@@ -98,6 +108,33 @@ impl V128 {
 impl From<Box<[u8; 16]>> for V128 {
     fn from(v: Box<[u8; 16]>) -> Self {
         Self { u8x16: *v }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct GlobalType {
+    mutable: bool,
+    ty: ValueType,
+}
+
+impl Type for GlobalType {}
+
+impl From<parity_wasm::elements::GlobalType> for GlobalType {
+    fn from(v: parity_wasm::elements::GlobalType) -> GlobalType {
+        GlobalType {
+            mutable: v.is_mutable(),
+            ty: ValueType::from(v.content_type()),
+        }
+    }
+}
+
+impl GlobalType {
+    pub fn value_type(&self) -> &ValueType {
+        &self.ty
+    }
+
+    pub fn is_mutable(&self) -> bool {
+        self.mutable
     }
 }
 

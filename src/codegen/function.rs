@@ -1,6 +1,6 @@
 use super::{
     context::ContextCodeGen, control::ControlInstrEmit, module::ModuleCodeGen,
-    numeric::NumericInstrEmit, variable::VariableInstrEmit, BasicBlock, CodeGen,
+    numeric::NumericInstrEmit, variable::VariableInstrEmit, BasicBlock, Builder, CodeGen,
     ContorlContextType, ControlContext, PHINode, Type, Value,
 };
 use libc::c_uint;
@@ -10,9 +10,8 @@ use std::ffi::{CStr, CString};
 use std::ops::Deref;
 use std::ptr::null;
 use std::rc::Rc;
-use wasm::{Function as WASMFunction, FunctionType, Instruction, ValueType};
+use wasm::{Function as WASMFunction, FunctionType, Instruction, Module as WASMModule, ValueType};
 
-define_type_wrapper!(pub Builder, LLVMBuilderRef);
 define_type_wrapper!(pub Function, LLVMValueRef);
 
 fn test_instruction(t: Instruction) {}
@@ -21,97 +20,14 @@ impl Function {
     pub fn set_personality_function(&self, func: Function) {
         unsafe { llvm_sys::core::LLVMSetPersonalityFn(self.0, func.0) };
     }
-}
 
-define_type_wrapper!(pub SwitchInst, LLVMValueRef);
-
-impl SwitchInst {
-    pub fn add_case<'a>(&self, on_val: Value, dest: BasicBlock) {
-        unsafe { llvm_sys::core::LLVMAddCase(self.0, *on_val, *dest) }
-    }
-}
-
-impl Builder {
-    pub fn get_insert_block(&self) -> BasicBlock {
-        unsafe { BasicBlock::from(llvm_sys::core::LLVMGetInsertBlock(self.0)) }
-    }
-
-    // LLVMPositionBuilderAtEnd
-    pub fn set_insert_block(&self, block: BasicBlock) {
-        unsafe { llvm_sys::core::LLVMPositionBuilderAtEnd(self.0, *block) };
-    }
-
-    pub fn create_phi(&self, ty: Type) -> PHINode {
-        let name = CString::new("").unwrap();
-        unsafe { PHINode::from(llvm_sys::core::LLVMBuildPhi(self.0, *ty, name.as_ptr())) }
-    }
-
-    pub fn create_alloca(&self, ty: Type, name: &str) -> Value {
-        let c_name = CString::new(name).unwrap();
+    pub fn get_params(&self) -> Vec<Value> {
+        let sz = unsafe { llvm_sys::core::LLVMCountParams(self.0) };
         unsafe {
-            Value::from(llvm_sys::core::LLVMBuildAlloca(
-                self.0,
-                *ty,
-                c_name.as_ptr(),
-            ))
+            (0..sz)
+                .map(|t| Value::from(llvm_sys::core::LLVMGetParam(self.0, t)))
+                .collect()
         }
-    }
-
-    pub fn create_store(&self, val: Value, ptr: Value) -> Value {
-        unsafe { Value::from(llvm_sys::core::LLVMBuildStore(self.0, *val, *ptr)) }
-    }
-
-    pub fn create_br_instr(&self, block: BasicBlock) -> Value {
-        unsafe { Value::from(llvm_sys::core::LLVMBuildBr(self.0, *block)) }
-    }
-
-    pub fn create_cond_br_instr(&self, if_: Value, then: BasicBlock, else_: BasicBlock) -> Value {
-        unsafe { Value::from(llvm_sys::core::LLVMBuildCondBr(self.0, *if_, *then, *else_)) }
-    }
-
-    pub fn create_bit_cast(&self, v: Value, ty: Type) -> Value {
-        let c_name = CString::new("").unwrap();
-        unsafe {
-            Value::from(llvm_sys::core::LLVMBuildBitCast(
-                self.0,
-                *v,
-                *ty,
-                c_name.as_ptr(),
-            ))
-        }
-    }
-
-    pub fn create_select(&self, if_: Value, then: Value, else_: Value) -> Value {
-        let c_name = CString::new("").unwrap();
-        unsafe {
-            Value::from(llvm_sys::core::LLVMBuildSelect(
-                self.0,
-                *if_,
-                *then,
-                *else_,
-                c_name.as_ptr(),
-            ))
-        }
-    }
-
-    pub fn create_unreachable(&self) -> Value {
-        unsafe { Value::from(llvm_sys::core::LLVMBuildUnreachable(self.0)) }
-    }
-
-    pub fn create_switch(&self, v: Value, else_: BasicBlock, num_cases: usize) -> SwitchInst {
-        unsafe {
-            SwitchInst::from(llvm_sys::core::LLVMBuildSwitch(
-                self.0,
-                *v,
-                *else_,
-                num_cases as u32,
-            ))
-        }
-    }
-
-    pub fn create_load(&self, v: Value) -> Value {
-        let c_name = CString::new("").unwrap();
-        unsafe { Value::from(llvm_sys::core::LLVMBuildLoad(self.0, *v, c_name.as_ptr())) }
     }
 }
 
@@ -131,33 +47,48 @@ pub struct FunctionCodeGen {
     pub(in codegen) branch_target_stack: Vec<BranchTarget>,
     pub(in codegen) stack: Vec<Value>,
     pub(in codegen) local_pointers: Vec<Value>,
-    // memory_base_ptr: Value,
-    // ctx_ptr: Value,
+    ll_params: Vec<Value>,
+    memory_base_ptr: Value,
+    pub ctx_ptr: Value,
 }
 
 // impl CodeGen for FunctionCodeGen {
-//     fn init_context_variable(&mut self, init_context_ptr: Value) {
-//         self.memory_base_ptr = self
-//             .builder
-//             .create_alloca(self.ctx.i8_ptr_type, "memoryBase");
-//         self.ctx_ptr = self.builder.create_alloca(self.ctx.i8_ptr_type, "context");
-//         self.builder.create_store(init_context_ptr, self.ctx_ptr);
-//         self.reload_memory_base();
-//     }
-
-//     fn reload_memory_base(&mut self) {
-//         // TODO
-//     }
-// }
 
 impl FunctionCodeGen {
     pub fn new(
         // module: Rc<ModuleCodeGen>,
         ctx: &ContextCodeGen,
+        module: &ModuleCodeGen,
         func: Function,
         func_ty: FunctionType,
     ) -> Self {
-        let builder = ctx.get_builder();
+        let builder = ctx.create_builder();
+
+        let mut ll_params = func.get_params();
+        let init_ctx_ptr = ll_params.remove(0);
+        assert!(ll_params.len() + 1 == func_ty.params().len());
+
+        let (memory_base_ptr, ctx_ptr) = {
+            let memory_base_ptr = builder.create_alloca(ctx.i8_ptr_type, "memoryBase");
+            let ctx_ptr = builder.create_alloca(ctx.i8_ptr_type, "context");
+            builder.create_store(ll_params[0], ctx_ptr);
+            {
+                let compartment_addr = super::get_compartment_address(ctx, builder, ctx_ptr);
+
+                if let Some(offset) = module.default_memory_offset() {
+                    builder.create_store(
+                        builder.load_from_untyped_pointer(
+                            builder.create_in_bounds_GEP(compartment_addr, &[offset]),
+                            ctx.i8_ptr_type,
+                            std::mem::size_of::<usize>() as u32,
+                        ),
+                        memory_base_ptr,
+                    );
+                }
+            }
+            (memory_base_ptr, ctx_ptr)
+        };
+
         Self {
             func,
             func_ty,
@@ -168,7 +99,14 @@ impl FunctionCodeGen {
             branch_target_stack: Vec::new(),
             stack: Vec::new(),
             local_pointers: Vec::new(),
+            ll_params,
+            memory_base_ptr,
+            ctx_ptr,
         }
+    }
+
+    fn reload_memory_base(&mut self) {
+        // TODO
     }
 
     pub fn create_entry_block(&self, ctx: &ContextCodeGen) {
@@ -182,8 +120,8 @@ impl FunctionCodeGen {
         block: BasicBlock,
         res_type: ValueType,
     ) -> PHINode {
-        let origin_block = ctx.get_builder().get_insert_block();
-        ctx.get_builder().set_insert_block(block);
+        let origin_block = self.builder.get_insert_block();
+        self.builder.set_insert_block(block);
 
         let ret = self.builder.create_phi(ctx.get_basic_type(res_type));
         self.builder.set_insert_block(origin_block);
@@ -225,21 +163,18 @@ impl FunctionCodeGen {
         }
     }
 
-    pub fn get_llvm_params(&self) -> Vec<Value> {
-        let sz = unsafe { llvm_sys::core::LLVMCountParams(*self.func) };
-        unsafe {
-            (0..sz)
-                .map(|t| Value::from(llvm_sys::core::LLVMGetParam(*self.func, t)))
-                .collect()
-        }
-    }
-
     #[inline]
     pub fn get_func_type(&self) -> FunctionType {
         self.func_ty.clone()
     }
 
-    pub fn codegen(&mut self, ctx: &ContextCodeGen, wasm_func: &WASMFunction) {
+    pub fn codegen(
+        &mut self,
+        ctx: &ContextCodeGen,
+        wasm_module: &WASMModule,
+        module: &ModuleCodeGen,
+        wasm_func: &WASMFunction,
+    ) {
         // let di_func_param_types = self
         //     .func_ty
         //     .params()
@@ -262,14 +197,11 @@ impl FunctionCodeGen {
         self.create_ret_block(ctx);
         self.create_entry_block(ctx);
 
-        let ll_params = self.get_llvm_params();
-        assert!(ll_params.len() == self.func_ty.params().len());
-
         self.func_ty
             .clone()
             .params()
             .iter()
-            .zip(ll_params.iter())
+            .zip(self.ll_params.clone().iter())
             .for_each(|(param, ll)| {
                 let local = self.builder.create_alloca(ctx.get_basic_type(*param), "");
                 self.builder.create_store(*ll, local);
@@ -277,8 +209,7 @@ impl FunctionCodeGen {
             });
 
         wasm_func.instructions().iter().for_each(|t| {
-            println!("{:?}", *t);
-            declear_instrs!(decode_instr, (self, ctx, t.clone()));
+            declear_instrs!(decode_instr, (self, ctx, wasm_module, module, t.clone()));
             unimplemented!()
         });
         // self.init_context_variable(params[0]);

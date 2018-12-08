@@ -41,4 +41,8 @@ impl Value {
     pub fn erase_from_parent(self) {
         unsafe { llvm_sys::core::LLVMDeleteGlobal(self.0) }
     }
+
+    pub fn set_alignment(&self, align: u32) {
+        unsafe { llvm_sys::core::LLVMSetAlignment(self.0, align) }
+    }
 }

@@ -1,6 +1,7 @@
 use super::common::Literal;
-use super::FunctionCodeGen;
+use super::{FunctionCodeGen, ModuleCodeGen};
 use wasm::types::*;
+use wasm::Module as WASMModule;
 
 #[repr(C)]
 struct LiteralImm<T: Type>(T);
@@ -11,7 +12,7 @@ pub trait NumericInstrEmit {
 
 macro_rules! emit_const {
     ($name:ident, $arg_type:ty, $type:tt) => {
-        fn $name(&mut self, ctx: &$crate::codegen::ContextCodeGen, imm: $arg_type) {
+        fn $name(&mut self, ctx: &$crate::codegen::ContextCodeGen, wasm_module: &WASMModule, module: &ModuleCodeGen, imm: $arg_type) {
             let const_val = $crate::wasm::types::$type::from(imm).emit_const(ctx);
             self.push(const_val);
         }

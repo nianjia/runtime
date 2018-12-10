@@ -4,6 +4,8 @@ use llvm_sys;
 use llvm_sys::prelude::{LLVMContextRef, LLVMTypeRef};
 use std::ffi::CString;
 use std::ops::Deref;
+use wasm::call_conv::CallConv as WASMCallConv;
+use wasm::FunctionType as WASMFunctionType;
 
 define_type_wrapper!(pub Type, LLVMTypeRef);
 
@@ -77,12 +79,31 @@ impl Type {
         Type::from(unsafe { llvm_sys::core::LLVMVectorType(self.0, len as c_uint) })
     }
 
-    pub fn func(args: &[Type], ret: Type) -> Self {
+    pub fn func(
+        ctx: &ContextCodeGen,
+        func_type: &WASMFunctionType,
+        call_conv: WASMCallConv,
+    ) -> Self {
+        let res_type = ctx.get_basic_type(func_type.res().unwrap_or_default());
+        let param_types = {
+            let types = func_type
+                .params()
+                .iter()
+                .map(|t| ctx.get_basic_type(*t))
+                .collect::<Vec<_>>();
+            if call_conv != WASMCallConv::C {
+                let mut param_types = vec![ctx.i8_ptr_type];
+                param_types.extend(types);
+                param_types
+            } else {
+                types
+            }
+        };
         Type::from(unsafe {
             llvm_sys::core::LLVMFunctionType(
-                ret.0,
-                args.as_ptr() as *mut _,
-                args.len() as c_uint,
+                *res_type,
+                param_types.as_ptr() as *mut _,
+                param_types.len() as c_uint,
                 0,
             )
         })

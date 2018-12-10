@@ -1,3 +1,4 @@
+pub mod call_conv;
 mod defines;
 mod imports;
 pub mod types;
@@ -47,25 +48,28 @@ impl Function {
     }
 }
 
+#[derive(Debug)]
 struct Import<T: types::Type>(T);
+
 impl<T: Type> Entry<T> for Import<T> {
     fn get_type(&self) -> &T {
         &self.0
     }
 }
 
+#[derive(Debug)]
 pub struct CombinedDeclear<T: Def<U>, U: Type> {
     defines: Vec<T>,
     imports: Vec<Import<U>>,
 }
 
 impl<T: Def<U>, U: Type> CombinedDeclear<T, U> {
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.defines.len() + self.imports.len()
     }
 
     pub fn get_type(&self, index: usize) -> &U {
-        let len = self.defines.len();
+        let len = self.imports.len();
         if index < len {
             &self.imports[index].get_type()
         } else {
@@ -85,13 +89,14 @@ impl<T: Def<U>, U: Type> CombinedDeclear<T, U> {
     }
 
     pub fn is_define(&self, index: usize) -> bool {
-        self.is_import(index)
+        !self.is_import(index)
     }
 }
 
 pub struct Memory;
 pub struct Table;
 
+#[derive(Debug)]
 pub struct Global(GlobalType);
 
 impl From<parity_wasm::elements::GlobalEntry> for Global {

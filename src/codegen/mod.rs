@@ -6,6 +6,7 @@ mod context;
 mod control;
 // mod debuginfo;
 mod builder;
+mod call_conv;
 mod function;
 mod module;
 mod numeric;

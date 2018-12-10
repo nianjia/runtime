@@ -28,7 +28,7 @@ impl Builder {
     }
 
     pub fn create_alloca(&self, ty: Type, name: &str) -> Value {
-        let c_name = CString::new(name).unwrap();
+        let c_name = CString::new("").unwrap();
         unsafe {
             Value::from(llvm_sys::core::LLVMBuildAlloca(
                 self.0,

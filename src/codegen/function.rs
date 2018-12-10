@@ -47,9 +47,9 @@ pub struct FunctionCodeGen {
     pub(in codegen) branch_target_stack: Vec<BranchTarget>,
     pub(in codegen) stack: Vec<Value>,
     pub(in codegen) local_pointers: Vec<Value>,
-    ll_params: Vec<Value>,
-    memory_base_ptr: Value,
-    pub ctx_ptr: Value,
+    // ll_params: Vec<Value>,
+    memory_base_ptr: Option<Value>,
+    pub ctx_ptr: Option<Value>,
 }
 
 // impl CodeGen for FunctionCodeGen {
@@ -64,31 +64,6 @@ impl FunctionCodeGen {
     ) -> Self {
         let builder = ctx.create_builder();
 
-        let mut ll_params = func.get_params();
-        let init_ctx_ptr = ll_params.remove(0);
-        assert!(ll_params.len() + 1 == func_ty.params().len());
-
-        let (memory_base_ptr, ctx_ptr) = {
-            let memory_base_ptr = builder.create_alloca(ctx.i8_ptr_type, "memoryBase");
-            let ctx_ptr = builder.create_alloca(ctx.i8_ptr_type, "context");
-            builder.create_store(ll_params[0], ctx_ptr);
-            {
-                let compartment_addr = super::get_compartment_address(ctx, builder, ctx_ptr);
-
-                if let Some(offset) = module.default_memory_offset() {
-                    builder.create_store(
-                        builder.load_from_untyped_pointer(
-                            builder.create_in_bounds_GEP(compartment_addr, &[offset]),
-                            ctx.i8_ptr_type,
-                            std::mem::size_of::<usize>() as u32,
-                        ),
-                        memory_base_ptr,
-                    );
-                }
-            }
-            (memory_base_ptr, ctx_ptr)
-        };
-
         Self {
             func,
             func_ty,
@@ -99,9 +74,9 @@ impl FunctionCodeGen {
             branch_target_stack: Vec::new(),
             stack: Vec::new(),
             local_pointers: Vec::new(),
-            ll_params,
-            memory_base_ptr,
-            ctx_ptr,
+            // None,
+            memory_base_ptr: None,
+            ctx_ptr: None,
         }
     }
 
@@ -197,11 +172,40 @@ impl FunctionCodeGen {
         self.create_ret_block(ctx);
         self.create_entry_block(ctx);
 
+        let mut ll_params = self.func.get_params();
+        let init_ctx_ptr = ll_params.remove(0);
+        assert!(ll_params.len() == self.func_ty.params().len());
+
+        let (memory_base_ptr, ctx_ptr) = {
+            let memory_base_ptr = self.builder.create_alloca(ctx.i8_ptr_type, "memoryBase");
+            let ctx_ptr = self.builder.create_alloca(ctx.i8_ptr_type, "context");
+            self.builder.create_store(init_ctx_ptr, ctx_ptr);
+            {
+                let compartment_addr = super::get_compartment_address(ctx, self.builder, ctx_ptr);
+
+                if let Some(offset) = module.default_memory_offset() {
+                    self.builder.create_store(
+                        self.builder.load_from_untyped_pointer(
+                            self.builder
+                                .create_in_bounds_GEP(compartment_addr, &[offset]),
+                            ctx.i8_ptr_type,
+                            std::mem::size_of::<usize>() as u32,
+                        ),
+                        memory_base_ptr,
+                    );
+                }
+            }
+            (memory_base_ptr, ctx_ptr)
+        };
+
+        self.memory_base_ptr = Some(memory_base_ptr);
+        self.ctx_ptr = Some(ctx_ptr);
+
         self.func_ty
             .clone()
             .params()
             .iter()
-            .zip(self.ll_params.clone().iter())
+            .zip(ll_params.clone().iter())
             .for_each(|(param, ll)| {
                 let local = self.builder.create_alloca(ctx.get_basic_type(*param), "");
                 self.builder.create_store(*ll, local);

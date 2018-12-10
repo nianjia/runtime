@@ -53,7 +53,7 @@ impl VariableInstrEmit for FunctionCodeGen {
                     .builder
                     .create_ptr_to_int(module.globals()[index as usize], ctx.iptr_type);
                 let global_pointer = self.builder.create_in_bounds_GEP(
-                    self.builder.create_load(self.ctx_ptr),
+                    self.builder.create_load(self.ctx_ptr.unwrap()),
                     &[global_data_offset],
                 );
                 self.builder.load_from_untyped_pointer(

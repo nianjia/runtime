@@ -5,7 +5,9 @@ use llvm_sys::prelude::{LLVMDIBuilderRef, LLVMMetadataRef, LLVMModuleRef};
 use std::ffi::CString;
 use std::rc::Rc;
 use wasm::Module as WASMModule;
-use wasm::{self, Entry, FunctionType, ValueType};
+use wasm::{
+    self, call_conv::CallConv as WASMCallConv, Entry, FunctionType as WASMFunctionType, ValueType,
+};
 
 define_type_wrapper!(pub Module, LLVMModuleRef);
 // type Function = super::LLVMWrapper<
@@ -86,18 +88,12 @@ impl ModuleCodeGen {
         //     }
         // };
 
-        // let globals = {
-        //     if let Some(globals) = wasm_module.global_section() {
-        //         (0..globals.entries().len())
-        //             .map(|t| {
-        //                 let s = format!("global{}", t);
-        //                 llmod.create_imported_constant(s.as_str(), ctx.i8_type)
-        //             })
-        //             .collect()
-        //     } else {
-        //         Vec::new()
-        //     }
-        // };
+        let globals = (0..wasm_module.globals().len())
+            .map(|t| {
+                let s = format!("global{}", t);
+                module.create_imported_constant(s.as_str(), ctx.i8_type)
+            })
+            .collect::<Vec<_>>();
 
         // TODO: exception globals
 
@@ -125,7 +121,7 @@ impl ModuleCodeGen {
             type_ids,
             table_offsets: Vec::new(),
             memory_offsets: Vec::new(),
-            globals: Vec::new(),
+            globals,
             // functions,
             // dibuilder,
             default_memory_offset: None,
@@ -145,6 +141,17 @@ impl ModuleCodeGen {
         &self.globals
     }
 
+    pub fn add_function(&self, name: &str, ty: Type) -> Function {
+        let c_name = CString::new(name).unwrap();
+        unsafe {
+            Function::from(llvm_sys::core::LLVMAddFunction(
+                *self.module,
+                c_name.as_ptr(),
+                *ty,
+            ))
+        }
+    }
+
     // #[inline]
     // pub fn get_wasm_module(&self) -> Rc<WASMModule> {
     //     self.wasm_module.clone()
@@ -154,8 +161,14 @@ impl ModuleCodeGen {
         // let rc = Rc::new(*self);
         // let ctx = Rc::new(*ctx);
         let module = self.module;
-        let personality_func =
-            module.add_function("__gxx_personality_v0", Type::func(&[], ctx.i32_type));
+        let personality_func = module.add_function(
+            "__gxx_personality_v0",
+            Type::func(
+                ctx,
+                &WASMFunctionType::new(vec![], Some(ValueType::I32)),
+                WASMCallConv::C,
+            ),
+        );
 
         wasm_module
             .function_defs()
@@ -168,7 +181,7 @@ impl ModuleCodeGen {
                     .get_ptr_to_int(ctx.iptr_type);
 
                 let func_type = wasm_func.get_type();
-                let llvm_type = get_function_type(ctx, func_type);
+                let llvm_type = get_function_llvm_type(ctx, func_type, WASMCallConv::Wasm);
                 let ll_func = module.add_function(s.as_str(), llvm_type);
                 // func.set_prefix_data(common::const_array(
                 //     ctx.iptr_type.array(4),
@@ -202,12 +215,10 @@ impl ModuleCodeGen {
     }
 }
 
-fn get_function_type(ctx: &ContextCodeGen, wasm_func_type: &wasm::FunctionType) -> Type {
-    let param_tys = wasm_func_type
-        .params()
-        .iter()
-        .map(|t| ctx.get_basic_type(wasm::ValueType::from(*t)))
-        .collect::<Vec<_>>();
-    let ret_ty = ctx.get_basic_type(wasm_func_type.res().unwrap_or_default());
-    Type::func(&param_tys[..], ret_ty)
+fn get_function_llvm_type(
+    ctx: &ContextCodeGen,
+    func_type: &WASMFunctionType,
+    call_conv: WASMCallConv,
+) -> Type {
+    Type::func(ctx, func_type, call_conv)
 }

@@ -164,6 +164,9 @@ impl From<parity_wasm::elements::FunctionType> for FunctionType {
 }
 
 impl FunctionType {
+    pub fn new(params: Vec<ValueType>, res: Option<ValueType>) -> Self {
+        Self { res, params }
+    }
     pub fn res(&self) -> Option<ValueType> {
         self.res
     }

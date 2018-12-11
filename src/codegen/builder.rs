@@ -38,6 +38,18 @@ impl Builder {
         }
     }
 
+    pub fn create_add(&self, lhs: Value, rhs: Value) -> Value {
+        let c_name = CString::new("").unwrap();
+        unsafe {
+            Value::from(llvm_sys::core::LLVMBuildAdd(
+                self.0,
+                *lhs,
+                *rhs,
+                c_name.as_ptr(),
+            ))
+        }
+    }
+
     pub fn create_store(&self, val: Value, ptr: Value) -> Value {
         unsafe { Value::from(llvm_sys::core::LLVMBuildStore(self.0, *val, *ptr)) }
     }
@@ -160,5 +172,17 @@ impl Builder {
         let load = self.create_load(self.create_ptr_cast(ptr, ty.ptr_to()));
         load.set_alignment(align);
         load
+    }
+
+    pub fn create_zext(&self, addr: Value, ty: Type) -> Value {
+        let c_name = CString::new("").unwrap();
+        unsafe {
+            Value::from(llvm_sys::core::LLVMBuildZExt(
+                self.0,
+                *addr,
+                *ty,
+                c_name.as_ptr(),
+            ))
+        }
     }
 }

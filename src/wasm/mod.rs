@@ -21,6 +21,7 @@ pub trait Def<T: Type>: Entry<T> {}
 #[derive(Debug)]
 pub struct Function {
     ty: FunctionType,
+    locals: Vec<ValueType>,
     code: Instructions,
 }
 
@@ -39,12 +40,21 @@ impl Function {
     ) -> Self {
         Self {
             ty: func_types[func_def.type_ref() as usize].clone(),
+            locals: func_body
+                .locals()
+                .iter()
+                .map(|t| ValueType::from(t.value_type()))
+                .collect(),
             code: func_body.code().clone(),
         }
     }
 
     pub fn instructions(&self) -> &[Instruction] {
         self.code.elements()
+    }
+
+    pub fn locals(&self) -> &[ValueType] {
+        &self.locals
     }
 }
 

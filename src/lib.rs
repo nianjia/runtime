@@ -7,6 +7,7 @@
 #![allow(unused_imports)]
 #![feature(exclusive_range_pattern)]
 #![feature(concat_idents)]
+#![allow(unused)]
 
 extern crate libc;
 #[macro_use]

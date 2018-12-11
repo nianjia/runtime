@@ -45,4 +45,8 @@ impl Value {
     pub fn set_alignment(&self, align: u32) {
         unsafe { llvm_sys::core::LLVMSetAlignment(self.0, align) }
     }
+
+    pub fn set_volatile(&self, volatile: bool) {
+        unsafe { llvm_sys::core::LLVMSetVolatile(self.0, if volatile { 1 } else { 0 }) }
+    }
 }

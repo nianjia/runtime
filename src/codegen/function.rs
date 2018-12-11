@@ -1,7 +1,7 @@
 use super::{
-    context::ContextCodeGen, control::ControlInstrEmit, module::ModuleCodeGen,
-    numeric::NumericInstrEmit, variable::VariableInstrEmit, BasicBlock, Builder, CodeGen,
-    ContorlContextType, ControlContext, PHINode, Type, Value,
+    context::ContextCodeGen, control::ControlInstrEmit, memory::MemoryInstrEmit,
+    module::ModuleCodeGen, numeric::NumericInstrEmit, variable::VariableInstrEmit, BasicBlock,
+    Builder, CodeGen, ContorlContextType, ControlContext, PHINode, Type, Value,
 };
 use libc::c_uint;
 use llvm_sys::prelude::{LLVMBuilderRef, LLVMValueRef};
@@ -48,7 +48,7 @@ pub struct FunctionCodeGen {
     pub(in codegen) stack: Vec<Value>,
     pub(in codegen) local_pointers: Vec<Value>,
     // ll_params: Vec<Value>,
-    memory_base_ptr: Option<Value>,
+    pub memory_base_ptr: Option<Value>,
     pub ctx_ptr: Option<Value>,
 }
 
@@ -211,6 +211,13 @@ impl FunctionCodeGen {
                 self.builder.create_store(*ll, local);
                 self.local_pointers.push(local);
             });
+
+        wasm_func.locals().iter().for_each(|ty| {
+            let local = self.builder.create_alloca(ctx.get_basic_type(*ty), "");
+            self.builder
+                .create_store(ctx.typed_zero_constants[*ty as usize], local);
+            self.local_pointers.push(local);
+        });
 
         wasm_func.instructions().iter().for_each(|t| {
             declear_instrs!(decode_instr, (self, ctx, wasm_module, module, t.clone()));

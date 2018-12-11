@@ -37,7 +37,7 @@ pub struct ModuleCodeGen {
     memory_offsets: Vec<Value>,
     globals: Vec<Value>,
     exception_type_ids: Vec<Value>,
-    // functions: Vec<(Function, u32)>,
+    functions: Vec<Function>,
     // pub dibuilder: DIBuilder,
     default_table_offset: Option<Value>,
     default_memory_offset: Option<Value>,
@@ -95,6 +95,40 @@ impl ModuleCodeGen {
             })
             .collect::<Vec<_>>();
 
+        let personality_func = module.add_function(
+            "__gxx_personality_v0",
+            Type::func(
+                ctx,
+                &WASMFunctionType::new(vec![], Some(ValueType::I32)),
+                WASMCallConv::C,
+            ),
+        );
+
+        let functions = (0..wasm_module.functions().len())
+            .map(|i| {
+                let s = if wasm_module.functions().is_define(i) {
+                    format!("functionDef{}", i)
+                } else {
+                    format!("functionImport{}", i)
+                };
+                module
+                    .create_imported_constant(s.as_str(), ctx.i8_type)
+                    .get_ptr_to_int(ctx.iptr_type);
+
+                let func_type = wasm_module.functions().get_type(i);
+                let llvm_type = get_function_llvm_type(ctx, func_type, WASMCallConv::Wasm);
+                let ll_func = module.add_function(s.as_str(), llvm_type);
+                // func.set_prefix_data(common::const_array(
+                //     ctx.iptr_type.array(4),
+                //     &[
+                //         // TODO add prefix data
+                //     ],
+                // ));
+                ll_func.set_personality_function(personality_func);
+                ll_func
+            })
+            .collect();
+
         // TODO: exception globals
 
         // let dibuilder = llmod.create_dibuilder();
@@ -122,7 +156,7 @@ impl ModuleCodeGen {
             table_offsets: Vec::new(),
             memory_offsets: Vec::new(),
             globals,
-            // functions,
+            functions,
             // dibuilder,
             default_memory_offset: None,
             default_table_offset: None,
@@ -158,48 +192,28 @@ impl ModuleCodeGen {
     // }
 
     pub fn emit(&self, ctx: &ContextCodeGen, wasm_module: &WASMModule) -> Module {
-        // let rc = Rc::new(*self);
-        // let ctx = Rc::new(*ctx);
-        let module = self.module;
-        let personality_func = module.add_function(
-            "__gxx_personality_v0",
-            Type::func(
+        (0..wasm_module.functions().len()).for_each(|i| {
+            if !wasm_module.functions().is_define(i) {
+                return;
+            }
+            FunctionCodeGen::new(
                 ctx,
-                &WASMFunctionType::new(vec![], Some(ValueType::I32)),
-                WASMCallConv::C,
-            ),
-        );
-
-        wasm_module
-            .function_defs()
-            .iter()
-            .enumerate()
-            .for_each(|(i, wasm_func)| {
-                let s = format!("functionDef{}", i);
-                module
-                    .create_imported_constant(s.as_str(), ctx.i8_type)
-                    .get_ptr_to_int(ctx.iptr_type);
-
-                let func_type = wasm_func.get_type();
-                let llvm_type = get_function_llvm_type(ctx, func_type, WASMCallConv::Wasm);
-                let ll_func = module.add_function(s.as_str(), llvm_type);
-                // func.set_prefix_data(common::const_array(
-                //     ctx.iptr_type.array(4),
-                //     &[
-                //         // TODO add prefix data
-                //     ],
-                // ));
-                ll_func.set_personality_function(personality_func);
-                FunctionCodeGen::new(
-                    // rc,
-                    ctx,
-                    self,
-                    ll_func,
-                    func_type.clone(),
-                )
-                .codegen(ctx, wasm_module, self, wasm_func);
-            });
+                self,
+                self.functions[i],
+                wasm_module.functions().get_type(i).clone(),
+            )
+            .codegen(
+                ctx,
+                wasm_module,
+                self,
+                wasm_module.functions().get_define(i).unwrap(),
+            );
+        });
         unimplemented!()
+    }
+
+    pub fn functions(&self) -> &[Function] {
+        &self.functions
     }
 
     // pub fn create_dibuilder(self) -> mut DIBuilder {

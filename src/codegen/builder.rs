@@ -1,4 +1,4 @@
-use super::{BasicBlock, PHINode, Type, Value};
+use super::{function::Function, inst::CallInst, BasicBlock, PHINode, Type, Value};
 use llvm_sys::prelude::{LLVMBuilderRef, LLVMValueRef};
 use std::ffi::CString;
 
@@ -181,6 +181,19 @@ impl Builder {
                 self.0,
                 *addr,
                 *ty,
+                c_name.as_ptr(),
+            ))
+        }
+    }
+
+    pub fn create_call(&self, callee: Function, args: &[Value]) -> CallInst {
+        let c_name = CString::new("").unwrap();
+        unsafe {
+            CallInst::from(llvm_sys::core::LLVMBuildCall(
+                self.0,
+                *callee,
+                args.as_ptr() as *mut _,
+                args.len() as u32,
                 c_name.as_ptr(),
             ))
         }

@@ -8,6 +8,7 @@ mod control;
 mod builder;
 mod call_conv;
 mod function;
+mod inst;
 mod memory;
 mod module;
 mod numeric;

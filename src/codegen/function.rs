@@ -232,16 +232,25 @@ impl FunctionCodeGen {
 
     #[inline]
     pub fn pop(&mut self) -> Value {
+        self.pop_multi(1)[0]
+    }
+
+    #[inline]
+    pub fn pop_multi(&mut self, count: usize) -> Vec<Value> {
+        let len = self.stack.len();
         assert!(
-            self.stack.len()
-                - self
-                    .control_stack
-                    .last()
-                    .map(|t| t.outer_stack_size)
-                    .unwrap_or(0)
-                >= 1
+            len - self
+                .control_stack
+                .last()
+                .map(|t| t.outer_stack_size)
+                .unwrap_or(0)
+                >= count
         );
-        self.stack.pop().unwrap()
+        let res = self.stack[len - count..len].to_vec();
+        unsafe {
+            self.stack.set_len(len - count);
+        }
+        res
     }
 
     #[inline]

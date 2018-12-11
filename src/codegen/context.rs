@@ -4,7 +4,9 @@ use llvm_sys::prelude::{LLVMContextRef, LLVMModuleRef};
 use llvm_sys::{LLVMCallConv, LLVMTypeKind};
 use std::ffi::CString;
 use std::ops::Deref;
-use wasm::{self, types::V128, Module as WASMModule, ValueType};
+use wasm::{
+    self, call_conv::CallConv as WASMCallConv, types::V128, Module as WASMModule, ValueType,
+};
 
 lazy_static! {
     static ref IS_LLVM_INITIALIZED: bool = {
@@ -201,9 +203,12 @@ impl ContextCodeGen {
         &self,
         callee: Function,
         args: Vec<Value>,
-        call_conv: LLVMCallConv,
-    ) -> Vec<Value> {
-        unimplemented!()
+        call_conv: WASMCallConv,
+        builder: Builder,
+    ) -> Value {
+        let call = builder.create_call(callee, &args);
+        call.set_call_conv(call_conv);
+        Value::from(*call)
     }
 
     pub fn compile(&self, llvm_module: Module) -> Vec<u8> {

@@ -98,6 +98,15 @@ impl<T: Def<U>, U: Type> CombinedDeclear<T, U> {
         }
     }
 
+    pub fn get_define(&self, index: usize) -> Option<&T> {
+        let len = self.imports.len();
+        if index < len {
+            None
+        } else {
+            Some(&self.defines[index - len])
+        }
+    }
+
     pub fn is_define(&self, index: usize) -> bool {
         !self.is_import(index)
     }

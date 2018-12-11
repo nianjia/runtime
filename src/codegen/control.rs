@@ -4,9 +4,11 @@ use super::{
     value::Value, ContextCodeGen, ContorlContextType, ControlContext, FunctionCodeGen,
     ModuleCodeGen,
 };
-use llvm_sys::LLVMCallConv;
 use std::rc::Rc;
-use wasm::{BlockType, BrTableData, FunctionType, Module as WASMModule, ValueType};
+use wasm::{
+    call_conv::CallConv as WASMCallConv, BlockType, BrTableData, FunctionType,
+    Module as WASMModule, ValueType,
+};
 
 pub trait ControlInstrEmit {
     declare_control_instrs!(declear_op);
@@ -299,23 +301,19 @@ impl ControlInstrEmit for FunctionCodeGen {
         module: &ModuleCodeGen,
         index: u32,
     ) {
-        unimplemented!()
-        // let callee_type = self.module.get_function(index).get_func_type();
-        // let ll_args = (0..callee_type.params().len())
-        //     .map(|_| {
-        //         let v = self.pop();
-        //         self.ctx.coerce_to_canonical_type(self.builder, v)
-        //     })
-        //     .rev()
-        //     .collect::<Vec<_>>();
+        // unimplemented!()
+        let callee = module.functions()[index as usize];
+        let callee_type = wasm_module.functions().get_type(index as usize);
+        let mut args = vec![self.builder.create_load(self.ctx_ptr.unwrap())];
+        args.extend(
+            self.pop_multi(callee_type.params().len())
+                .iter()
+                .map(|t| ctx.coerce_to_canonical_type(self.builder, *t)),
+        );
 
-        // let res = self.ctx.emit_call_or_invoke(
-        //     self.module.get_function(index),
-        //     ll_args,
-        //     LLVMCallConv::LLVMFastCallConv,
-        // );
+        let res = ctx.emit_call_or_invoke(callee, args, WASMCallConv::Wasm, self.builder);
 
-        // res.iter().for_each(|v| self.push(*v));
+        self.push(res);
     }
 
     fn unreachable_(

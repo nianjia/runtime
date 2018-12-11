@@ -47,6 +47,6 @@ impl Value {
     }
 
     pub fn set_volatile(&self, volatile: bool) {
-        unsafe { llvm_sys::core::LLVMSetVolatile(self.0, if volatile { 1 } else { 0 }) }
+        unsafe { llvm_sys::core::LLVMSetVolatile(self.0, if volatile { 0 } else { 1 }) }
     }
 }

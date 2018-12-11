@@ -10,13 +10,13 @@ use wasm::{
 
 lazy_static! {
     static ref IS_LLVM_INITIALIZED: bool = {
-        // unsafe {
-        //     llvm_sys::core::LLVMInitializeNativeTarget();
-        //     llvm::InitializeNativeTargetAsmPrinter();
-        //     llvm::InitializeNativeTargetAsmParser();
-        //     llvm::InitializeNativeTargetDisassembler();
-        //     llvm_sys::core::LLVMLoadLibraryPermanently(std::ptr::null());
-        // };
+        unsafe {
+            assert!(llvm_sys::target::LLVM_InitializeNativeTarget() == 0);
+            assert!(llvm_sys::target::LLVM_InitializeNativeAsmPrinter() == 0);
+            assert!(llvm_sys::target::LLVM_InitializeNativeAsmParser() == 0);
+            assert!(llvm_sys::target::LLVM_InitializeNativeDisassembler() == 0);
+            assert!(llvm_sys::support::LLVMLoadLibraryPermanently(std::ptr::null()) == 0);
+        };
         true
     };
 }
@@ -209,9 +209,5 @@ impl ContextCodeGen {
         let call = builder.create_call(callee, &args);
         call.set_call_conv(call_conv);
         Value::from(*call)
-    }
-
-    pub fn compile(&self, llvm_module: Module) -> Vec<u8> {
-        unimplemented!()
     }
 }

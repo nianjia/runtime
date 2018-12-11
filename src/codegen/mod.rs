@@ -24,7 +24,10 @@ pub(self) use self::value::Value;
 
 use self::common::Literal;
 use llvm_sys;
-use llvm_sys::prelude::{LLVMBasicBlockRef, LLVMMetadataRef, LLVMValueRef};
+use llvm_sys::prelude::{LLVMBasicBlockRef, LLVMMemoryBufferRef, LLVMMetadataRef, LLVMValueRef};
+use llvm_sys::target::LLVMTargetDataRef;
+use llvm_sys::target_machine::LLVMTargetMachineRef;
+use std::ffi::CString;
 use std::ops::Deref;
 use std::rc::Rc;
 use wasm::types::I64;
@@ -128,14 +131,6 @@ impl BasicBlock {
     }
 }
 
-pub fn compile_module(wasm_module: &WASMModule) -> Vec<u8> {
-    let ctx = context::ContextCodeGen::new();
-    let module = ModuleCodeGen::new(&ctx, wasm_module);
-    let llvm_module = module.emit(&ctx, wasm_module);
-
-    ctx.compile(llvm_module)
-}
-
 pub fn get_compartment_address(ctx: &ContextCodeGen, builder: Builder, ctx_ptr: Value) -> Value {
     // Derive the compartment runtime data from the context address by masking off the lower
     // 32 bits.
@@ -146,4 +141,36 @@ pub fn get_compartment_address(ctx: &ContextCodeGen, builder: Builder, ctx_ptr: 
         ),
         ctx.i8_ptr_type,
     )
+}
+
+pub fn compile_module(wasm_module: &WASMModule) -> Vec<u8> {
+    let ctx = context::ContextCodeGen::new();
+    let module = ModuleCodeGen::new(&ctx, wasm_module);
+    let llvm_module = module.emit(&ctx, wasm_module);
+
+    module.compile(wasm_module)
+}
+
+define_type_wrapper!(pub TargetMachine, LLVMTargetMachineRef);
+
+impl TargetMachine {
+    pub fn create_data_layout(&self) -> String {
+        unsafe {
+            let target_data = llvm_sys::target_machine::LLVMCreateTargetDataLayout(self.0);
+            let c_str = llvm_sys::target::LLVMCopyStringRepOfTargetData(target_data);
+            CString::from_raw(c_str).into_string().unwrap()
+        }
+    }
+}
+
+define_type_wrapper!(pub MemoryBuffer, LLVMMemoryBufferRef);
+
+impl MemoryBuffer {
+    pub fn get_data(&self) -> *mut u8 {
+        unsafe { llvm_sys::core::LLVMGetBufferStart(self.0) as *mut _ }
+    }
+
+    pub fn get_len(&self) -> usize {
+        unsafe { llvm_sys::core::LLVMGetBufferSize(self.0) }
+    }
 }

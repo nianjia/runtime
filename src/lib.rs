@@ -53,6 +53,4 @@ macro_rules! define_type_wrapper {
 
 #[macro_use]
 pub mod codegen;
-//mod llvm;
-mod utils;
 pub mod wasm;

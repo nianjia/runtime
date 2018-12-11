@@ -1,13 +1,62 @@
 use super::function::Function;
-use super::{common, ContextCodeGen, FunctionCodeGen, Metadata, Type, Value};
+use super::{
+    common, ContextCodeGen, FunctionCodeGen, MemoryBuffer, Metadata, TargetMachine, Type, Value,
+};
 use llvm_sys;
-use llvm_sys::prelude::{LLVMDIBuilderRef, LLVMMetadataRef, LLVMModuleRef};
+use llvm_sys::prelude::{LLVMDIBuilderRef, LLVMMetadataRef, LLVMModuleRef, LLVMPassManagerRef};
+use llvm_sys::target_machine::LLVMCodeGenFileType;
 use std::ffi::CString;
 use std::rc::Rc;
 use wasm::Module as WASMModule;
 use wasm::{
     self, call_conv::CallConv as WASMCallConv, Entry, FunctionType as WASMFunctionType, ValueType,
 };
+
+define_type_wrapper!(pub PassManager, LLVMPassManagerRef);
+
+impl PassManager {
+    pub fn add_promote_memory_to_register_pass(&self) {
+        unsafe {
+            llvm_sys::transforms::util::LLVMAddPromoteMemoryToRegisterPass(self.0);
+        }
+    }
+
+    pub fn add_instruction_combining_pass(&self) {
+        unsafe {
+            llvm_sys::transforms::scalar::LLVMAddInstructionCombiningPass(self.0);
+        }
+    }
+
+    pub fn add_CFS_simplification_pass(&self) {
+        unsafe {
+            llvm_sys::transforms::scalar::LLVMAddCFGSimplificationPass(self.0);
+        }
+    }
+
+    pub fn add_jump_threading_pass(&self) {
+        unsafe {
+            llvm_sys::transforms::scalar::LLVMAddJumpThreadingPass(self.0);
+        }
+    }
+
+    pub fn add_constant_propagation_pass(&self) {
+        unsafe {
+            llvm_sys::transforms::scalar::LLVMAddConstantPropagationPass(self.0);
+        }
+    }
+
+    pub fn initialize(&self) {
+        unsafe {
+            llvm_sys::core::LLVMInitializeFunctionPassManager(self.0);
+        }
+    }
+
+    pub fn run_function(&self, func: Function) {
+        unsafe {
+            llvm_sys::core::LLVMRunFunctionPassManager(self.0, *func);
+        }
+    }
+}
 
 define_type_wrapper!(pub Module, LLVMModuleRef);
 // type Function = super::LLVMWrapper<
@@ -27,6 +76,33 @@ impl Module {
     pub fn create_imported_constant(&self, name: &str, ty: Type) -> Value {
         let c_name = CString::new(name).unwrap();
         unsafe { Value::from(llvm_sys::core::LLVMAddGlobal(self.0, *ty, c_name.as_ptr())) }
+    }
+
+    pub fn set_data_layout(&self, layout_str: &str) {
+        let c_layout = CString::new(layout_str).unwrap();
+        unsafe { llvm_sys::core::LLVMSetDataLayout(self.0, c_layout.as_ptr()) }
+    }
+
+    pub fn create_function_pass_manager(&self) -> PassManager {
+        unsafe {
+            let provider = llvm_sys::core::LLVMCreateModuleProviderForExistingModule(self.0);
+            PassManager::from(llvm_sys::core::LLVMCreateFunctionPassManager(provider))
+        }
+    }
+
+    pub fn emit_to_memory_buffer(&self, target_machine: TargetMachine) -> MemoryBuffer {
+        let mut mem_buf = std::ptr::null_mut();
+        let mut err_msg = std::ptr::null_mut();
+        unsafe {
+            llvm_sys::target_machine::LLVMTargetMachineEmitToMemoryBuffer(
+                *target_machine,
+                self.0,
+                LLVMCodeGenFileType::LLVMObjectFile,
+                &mut err_msg,
+                &mut mem_buf,
+            );
+        }
+        MemoryBuffer::from(mem_buf)
     }
 }
 
@@ -209,7 +285,7 @@ impl ModuleCodeGen {
                 wasm_module.functions().get_define(i).unwrap(),
             );
         });
-        unimplemented!()
+        self.module
     }
 
     pub fn functions(&self) -> &[Function] {
@@ -226,6 +302,79 @@ impl ModuleCodeGen {
         } else {
             Some(self.memory_offsets[0])
         }
+    }
+
+    pub fn create_target_machine(&self) -> TargetMachine {
+        let target = unsafe {
+            let mut err_msg = std::ptr::null_mut();
+            let mut t = std::ptr::null_mut();
+
+            assert!(
+                llvm_sys::target_machine::LLVMGetTargetFromTriple(
+                    llvm_sys::target_machine::LLVMGetDefaultTargetTriple(),
+                    &mut t,
+                    &mut err_msg,
+                ) == 0,
+                CString::from_raw(err_msg).into_string().unwrap()
+            );
+            t
+        };
+        unsafe {
+            TargetMachine::from(llvm_sys::target_machine::LLVMCreateTargetMachine(
+                target,
+                llvm_sys::target_machine::LLVMGetDefaultTargetTriple(),
+                llvm_sys::target_machine::LLVMGetHostCPUName(),
+                llvm_sys::target_machine::LLVMGetHostCPUFeatures(),
+                llvm_sys::target_machine::LLVMCodeGenOptLevel::LLVMCodeGenLevelDefault,
+                llvm_sys::target_machine::LLVMRelocMode::LLVMRelocDefault,
+                llvm_sys::target_machine::LLVMCodeModel::LLVMCodeModelJITDefault,
+            ))
+        }
+        // let mut t = std::ptr::null_mut();
+        // let mut err = std::ptr::null_mut();
+        // unsafe {
+        //     let res = llvm_sys::execution_engine::LLVMCreateExecutionEngineForModule(
+        //         &mut t,
+        //         *self.module,
+        //         &mut err,
+        //     );
+        //     println!(
+        //         "res = {}, addr = {}, err = {:X}, err_msg = {}",
+        //         res,
+        //         t as *const _ as usize,
+        //         err as *const _ as usize,
+        //         CString::from_raw(err).into_string().unwrap()
+        //     );
+
+        //     TargetMachine::from(llvm_sys::execution_engine::LLVMGetExecutionEngineTargetMachine(t))
+    }
+
+    pub fn optimize(&self, wasm_module: &WASMModule) {
+        let pass_manager = self.module.create_function_pass_manager();
+        pass_manager.add_promote_memory_to_register_pass();
+        pass_manager.add_instruction_combining_pass();
+        pass_manager.add_CFS_simplification_pass();
+        pass_manager.add_promote_memory_to_register_pass();
+        pass_manager.add_constant_propagation_pass();
+        pass_manager.initialize();
+
+        (0..self.functions().len()).for_each(|i| {
+            if wasm_module.functions().is_import(i) {
+                return;
+            }
+            pass_manager.run_function(self.functions()[i]);
+        });
+    }
+
+    pub fn compile(&self, wasm_module: &WASMModule) -> Vec<u8> {
+        let target_machine = self.create_target_machine();
+        self.module
+            .set_data_layout(&target_machine.create_data_layout());
+
+        self.optimize(wasm_module);
+
+        let mem_buf = self.module.emit_to_memory_buffer(target_machine);
+        unsafe { Vec::from_raw_parts(mem_buf.get_data(), mem_buf.get_len(), mem_buf.get_len()) }
     }
 }
 

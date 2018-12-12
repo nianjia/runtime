@@ -103,7 +103,7 @@ impl FunctionCodeGen {
         ret
     }
 
-    fn create_ret_block(&mut self, ctx: &ContextCodeGen) {
+    fn create_ret_block(&mut self, ctx: &ContextCodeGen) -> BasicBlock {
         let ret_block = ctx.create_basic_block("return", self);
         let res_type = self.func_ty.res().map(From::from);
         let end_PHIs = res_type.map(|ty| self.create_PHIs(ctx, ret_block, ty));
@@ -119,7 +119,8 @@ impl FunctionCodeGen {
             // param_types: vec![ret_ty],
             block: ret_block,
             type_PHIs: res_type.map(|ty| (ty, end_PHIs.unwrap())),
-        })
+        });
+        ret_block
     }
 
     pub fn get_llvm_func(&self) -> Function {
@@ -169,7 +170,7 @@ impl FunctionCodeGen {
         //     self.ll_func,
         // );
 
-        self.create_ret_block(ctx);
+        let ret_block = self.create_ret_block(ctx);
         self.create_entry_block(ctx);
 
         let mut ll_params = self.func.get_params();
@@ -223,7 +224,20 @@ impl FunctionCodeGen {
             declear_instrs!(decode_instr, (self, ctx, wasm_module, module, t.clone()));
             unimplemented!()
         });
+        assert!(self.builder.get_insert_block() == ret_block);
+
+        self.emit_return();
         // self.init_context_variable(params[0]);
+    }
+
+    fn emit_return(&self) {
+        if let Some(_) = self.func_ty.res() {
+            assert!(self.stack.len() == 1);
+            self.builder.create_ret(self.stack[0]);
+        } else {
+            assert!(self.stack.len() == 0);
+            self.builder.create_ret_void();
+        }
     }
 
     pub fn get_value_from_stack(&self, idx: usize) -> Value {

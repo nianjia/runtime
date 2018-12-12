@@ -17,7 +17,7 @@ extern crate parity_wasm;
 
 macro_rules! __define_type_wrapper_internal {
     (($($vis:tt)*) $name:ident, $llvm:ident) => {
-        #[derive(Clone, Copy)]
+        #[derive(Clone, Copy, PartialEq, Debug)]
         $($vis)* struct $name($llvm);
 
         impl std::ops::Deref for $name {

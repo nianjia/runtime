@@ -8,14 +8,6 @@ use std::ops::Deref;
 
 define_type_wrapper!(pub Value, LLVMValueRef);
 
-impl PartialEq for Value {
-    fn eq(&self, other: &Self) -> bool {
-        self as *const _ == other as *const _
-    }
-}
-
-impl Eq for Value {}
-
 impl Hash for Value {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         (self as *const Self).hash(hasher);

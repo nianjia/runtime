@@ -10,6 +10,8 @@ fn run(file: &str) {
 
     let compiled_module = nrt::codegen::compile_module(&wasm_module);
 
+    unreachable!()
+
     // let linked_module = nrt::link_module(compiled_module);
 }
 

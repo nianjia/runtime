@@ -158,7 +158,8 @@ impl TargetMachine {
         unsafe {
             let target_data = llvm_sys::target_machine::LLVMCreateTargetDataLayout(self.0);
             let c_str = llvm_sys::target::LLVMCopyStringRepOfTargetData(target_data);
-            CString::from_raw(c_str).into_string().unwrap()
+            let s = CString::from_raw(c_str).into_string().unwrap();
+            s
         }
     }
 }

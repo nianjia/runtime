@@ -198,4 +198,12 @@ impl Builder {
             ))
         }
     }
+
+    pub fn create_ret(&self, ret: Value) -> Value {
+        unsafe { Value::from(llvm_sys::core::LLVMBuildRet(self.0, *ret)) }
+    }
+
+    pub fn create_ret_void(&self) -> Value {
+        unsafe { Value::from(llvm_sys::core::LLVMBuildRetVoid(self.0)) }
+    }
 }

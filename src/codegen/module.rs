@@ -354,7 +354,7 @@ impl ModuleCodeGen {
         pass_manager.add_promote_memory_to_register_pass();
         pass_manager.add_instruction_combining_pass();
         pass_manager.add_CFS_simplification_pass();
-        pass_manager.add_promote_memory_to_register_pass();
+        pass_manager.add_jump_threading_pass();
         pass_manager.add_constant_propagation_pass();
         pass_manager.initialize();
 

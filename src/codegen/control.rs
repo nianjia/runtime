@@ -122,7 +122,7 @@ impl ControlInstrEmit for FunctionCodeGen {
         assert!(cur_ctx.else_block.is_some());
         assert!(cur_ctx.ty == ContorlContextType::IfThen);
 
-        let else_block = cur_ctx.else_block.unwrap().clone();
+        let else_block = cur_ctx.else_block.unwrap();
         else_block.move_after(self.builder.get_insert_block());
 
         // TODO: check whether need else arguments.

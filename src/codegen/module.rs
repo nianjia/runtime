@@ -94,12 +94,15 @@ impl Module {
         let mut mem_buf = std::ptr::null_mut();
         let mut err_msg = std::ptr::null_mut();
         unsafe {
-            llvm_sys::target_machine::LLVMTargetMachineEmitToMemoryBuffer(
-                *target_machine,
-                self.0,
-                LLVMCodeGenFileType::LLVMObjectFile,
-                &mut err_msg,
-                &mut mem_buf,
+            assert!(
+                llvm_sys::target_machine::LLVMTargetMachineEmitToMemoryBuffer(
+                    *target_machine,
+                    self.0,
+                    LLVMCodeGenFileType::LLVMObjectFile,
+                    &mut err_msg,
+                    &mut mem_buf,
+                ) == 0,
+                CString::from_raw(err_msg).into_string().unwrap()
             );
         }
         MemoryBuffer::from(mem_buf)
@@ -374,7 +377,7 @@ impl ModuleCodeGen {
         self.optimize(wasm_module);
 
         let mem_buf = self.module.emit_to_memory_buffer(target_machine);
-        unsafe { Vec::from_raw_parts(mem_buf.get_data(), mem_buf.get_len(), mem_buf.get_len()) }
+        unsafe { std::slice::from_raw_parts(mem_buf.get_data(), mem_buf.get_len()).to_vec() }
     }
 }
 

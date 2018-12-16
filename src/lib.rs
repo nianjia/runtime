@@ -5,6 +5,7 @@
 #![allow(non_upper_case_globals)]
 #![allow(non_snake_case)]
 #![allow(unused_imports)]
+#![feature(rustc_private)]
 #![feature(exclusive_range_pattern)]
 #![feature(concat_idents)]
 #![allow(unused)]
@@ -53,4 +54,5 @@ macro_rules! define_type_wrapper {
 
 #[macro_use]
 pub mod codegen;
+pub mod runtime;
 pub mod wasm;

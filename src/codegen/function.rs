@@ -4,62 +4,63 @@ use super::{
     Builder, CodeGen, ContorlContextType, ControlContext, PHINode, Type, Value,
 };
 use libc::c_uint;
-use llvm_sys::prelude::{LLVMBuilderRef, LLVMValueRef};
-use llvm_sys::{self, LLVMCallConv};
+use llvm;
+// use llvm_sys::prelude::{LLVMBuilderRef, LLVMValueRef};
+// use llvm_sys::{self, LLVMCallConv};
 use std::ffi::{CStr, CString};
 use std::ops::Deref;
 use std::ptr::null;
 use std::rc::Rc;
 use wasm::{Function as WASMFunction, FunctionType, Instruction, Module as WASMModule, ValueType};
 
-define_type_wrapper!(pub Function, LLVMValueRef);
+define_type_wrapper!(pub Function, llvm::Value);
 
 fn test_instruction(t: Instruction) {}
 
-impl Function {
+impl<'ll> Function<'ll> {
     pub fn set_personality_function(&self, func: Function) {
-        unsafe { llvm_sys::core::LLVMSetPersonalityFn(self.0, func.0) };
+        unsafe { llvm::LLVMSetPersonalityFn(self.0, func.0) };
     }
 
-    pub fn get_params(&self) -> Vec<Value> {
-        let sz = unsafe { llvm_sys::core::LLVMCountParams(self.0) };
+    pub fn get_params(&self) -> Vec<Value<'ll>> {
+        let sz = unsafe { llvm::LLVMCountParams(self.0) };
         unsafe {
             (0..sz)
-                .map(|t| Value::from(llvm_sys::core::LLVMGetParam(self.0, t)))
+                .map(|t| Value::from(llvm::LLVMGetParam(self.0, t)))
                 .collect()
         }
     }
 }
 
-pub struct BranchTarget {
-    // pub(in codegen) param_types: Vec<ValueType>,
-    pub(in codegen) block: BasicBlock,
-    pub(in codegen) type_PHIs: Option<(ValueType, PHINode)>,
+pub struct BranchTarget<'ll> {
+    // pub(in crate::codegen) param_types: Vec<ValueType>,
+    pub(in crate::codegen) block: BasicBlock<'ll>,
+    pub(in crate::codegen) type_PHIs: Option<(ValueType, PHINode<'ll>)>,
 }
 
-pub struct FunctionCodeGen {
-    pub(in codegen) func: Function,
-    pub(in codegen) func_ty: FunctionType,
-    // pub(in codegen) module: Rc<ModuleCodeGen>,
-    // pub(in codegen) ctx: Rc<ContextCodeGen>,
-    pub(in codegen) builder: Builder,
-    pub(in codegen) control_stack: Vec<ControlContext>,
-    pub(in codegen) branch_target_stack: Vec<BranchTarget>,
-    pub(in codegen) stack: Vec<Value>,
-    pub(in codegen) local_pointers: Vec<Value>,
+pub struct FunctionCodeGen<'ll> {
+    pub(in crate::codegen) func: Function<'ll>,
+    pub(in crate::codegen) func_ty: FunctionType,
+    // pub(in crate::codegen) module: Rc<ModuleCodeGen>,
+    // pub(in crate::codegen) ctx: Rc<ContextCodeGen>,
+    pub(in crate::codegen) builder: Builder<'ll>,
+    pub(in crate::codegen) control_stack: Vec<ControlContext<'ll>>,
+    pub(in crate::codegen) branch_target_stack: Vec<BranchTarget<'ll>>,
+    pub(in crate::codegen) stack: Vec<Value<'ll>>,
+    pub(in crate::codegen) local_pointers: Vec<Value<'ll>>,
     // ll_params: Vec<Value>,
-    pub memory_base_ptr: Option<Value>,
-    pub ctx_ptr: Option<Value>,
+    pub memory_base_ptr: Option<Value<'ll>>,
+    pub ctx_ptr: Option<Value<'ll>>,
 }
 
 // impl CodeGen for FunctionCodeGen {
 
-impl FunctionCodeGen {
+impl<'ll> FunctionCodeGen<'ll> {
     pub fn new(
         // module: Rc<ModuleCodeGen>,
-        ctx: &ContextCodeGen,
+        ctx: &ContextCodeGen<'ll>,
         module: &ModuleCodeGen,
-        func: Function,
+        func: Function<'ll>,
         func_ty: FunctionType,
     ) -> Self {
         let builder = ctx.create_builder();
@@ -84,17 +85,17 @@ impl FunctionCodeGen {
         // TODO
     }
 
-    pub fn create_entry_block(&self, ctx: &ContextCodeGen) {
+    pub fn create_entry_block(&self, ctx: &ContextCodeGen<'ll>) {
         let entry_block = ctx.create_basic_block("entry", self);
         self.builder.set_insert_block(entry_block);
     }
 
     pub fn create_PHIs(
         &self,
-        ctx: &ContextCodeGen,
-        block: BasicBlock,
+        ctx: &ContextCodeGen<'ll>,
+        block: BasicBlock<'ll>,
         res_type: ValueType,
-    ) -> PHINode {
+    ) -> PHINode<'ll> {
         let origin_block = self.builder.get_insert_block();
         self.builder.set_insert_block(block);
 
@@ -103,7 +104,7 @@ impl FunctionCodeGen {
         ret
     }
 
-    fn create_ret_block(&mut self, ctx: &ContextCodeGen) -> BasicBlock {
+    fn create_ret_block(&mut self, ctx: &ContextCodeGen<'ll>) -> BasicBlock<'ll> {
         let ret_block = ctx.create_basic_block("return", self);
         let res_type = self.func_ty.res().map(From::from);
         let end_PHIs = res_type.map(|ty| self.create_PHIs(ctx, ret_block, ty));
@@ -123,17 +124,17 @@ impl FunctionCodeGen {
         ret_block
     }
 
-    pub fn get_llvm_func(&self) -> Function {
+    pub fn get_llvm_func(&self) -> Function<'ll> {
         self.func
     }
 
     // pub fn set_prefix_data(&self, data: Value) {
-    //     unsafe { llvm_sys::core::LLVMRustSetFunctionPrefixData(self, data) }
+    //     unsafe { llvm::LLVMRustSetFunctionPrefixData(self, data) }
     // }
 
     pub fn name(&self) -> &str {
         unsafe {
-            CStr::from_ptr(llvm_sys::core::LLVMGetValueName(*self.func))
+            CStr::from_ptr(llvm::LLVMGetValueName(*self.func))
                 .to_str()
                 .unwrap()
         }
@@ -146,9 +147,9 @@ impl FunctionCodeGen {
 
     pub fn codegen(
         &mut self,
-        ctx: &ContextCodeGen,
+        ctx: &ContextCodeGen<'ll>,
         wasm_module: &WASMModule,
-        module: &ModuleCodeGen,
+        module: &ModuleCodeGen<'ll>,
         wasm_func: &WASMFunction,
     ) {
         // let di_func_param_types = self
@@ -240,17 +241,17 @@ impl FunctionCodeGen {
         }
     }
 
-    pub fn get_value_from_stack(&self, idx: usize) -> Value {
+    pub fn get_value_from_stack(&self, idx: usize) -> Value<'ll> {
         self.stack[self.stack.len() - 1 - idx]
     }
 
     #[inline]
-    pub fn pop(&mut self) -> Value {
+    pub fn pop(&mut self) -> Value<'ll> {
         self.pop_multi(1)[0]
     }
 
     #[inline]
-    pub fn pop_multi(&mut self, count: usize) -> Vec<Value> {
+    pub fn pop_multi(&mut self, count: usize) -> Vec<Value<'ll>> {
         let len = self.stack.len();
         assert!(
             len - self
@@ -268,7 +269,7 @@ impl FunctionCodeGen {
     }
 
     #[inline]
-    pub fn push(&mut self, v: Value) {
+    pub fn push(&mut self, v: Value<'ll>) {
         self.stack.push(v);
     }
 
@@ -276,9 +277,9 @@ impl FunctionCodeGen {
         &mut self,
         ty: ContorlContextType,
         res_types: Option<ValueType>,
-        end_block: BasicBlock,
-        end_PHIs: Option<PHINode>,
-        else_block: Option<BasicBlock>,
+        end_block: BasicBlock<'ll>,
+        end_PHIs: Option<PHINode<'ll>>,
+        else_block: Option<BasicBlock<'ll>>,
     ) {
         self.control_stack.push(ControlContext::new(
             ty,
@@ -291,7 +292,7 @@ impl FunctionCodeGen {
         ));
     }
 
-    pub fn branch_to_end_of_control_context(&mut self, ctx: &ContextCodeGen) {
+    pub fn branch_to_end_of_control_context(&mut self, ctx: &ContextCodeGen<'ll>) {
         let (end_block, end_PHIs) = {
             let cur_ctx = self.control_stack.last().unwrap();
 
@@ -314,7 +315,7 @@ impl FunctionCodeGen {
         self.builder.create_br_instr(end_block);
     }
 
-    pub fn get_branch_target(&self, depth: u32) -> &BranchTarget {
+    pub fn get_branch_target(&self, depth: u32) -> &BranchTarget<'ll> {
         &self.branch_target_stack[self.branch_target_stack.len() - depth as usize - 1]
     }
 

@@ -1,86 +1,88 @@
+use super::context::Context;
 use super::ContextCodeGen;
 use libc::c_uint;
-use llvm_sys;
-use llvm_sys::prelude::{LLVMContextRef, LLVMTypeRef};
+use llvm;
+//use llvm_sys;
+//use llvm_sys::prelude::{LLVMContextRef, LLVMTypeRef};
 use std::ffi::CString;
 use std::ops::Deref;
 use wasm::call_conv::CallConv as WASMCallConv;
 use wasm::FunctionType as WASMFunctionType;
 
-define_type_wrapper!(pub Type, LLVMTypeRef);
+define_type_wrapper!(pub Type, llvm::Type);
 
-impl Type {
-    pub fn void(ctx: LLVMContextRef) -> Self {
-        Type::from(unsafe { llvm_sys::core::LLVMVoidTypeInContext(ctx) })
+impl<'ll> Type<'ll> {
+    pub fn void(ctx: Context<'ll>) -> Self {
+        Type::from(unsafe { llvm::LLVMVoidTypeInContext(*ctx) })
     }
 
-    pub fn metadata(ctx: LLVMContextRef) -> Self {
-        Type::from(unsafe { llvm_sys::core::LLVMMetadataTypeInContext(ctx) })
+    pub fn metadata(ctx: Context<'ll>) -> Self {
+        Type::from(unsafe { llvm::LLVMMetadataTypeInContext(*ctx) })
     }
 
-    pub fn i1(ctx: LLVMContextRef) -> Self {
-        Type::from(unsafe { llvm_sys::core::LLVMInt1TypeInContext(ctx) })
+    pub fn i1(ctx: Context<'ll>) -> Self {
+        Type::from(unsafe { llvm::LLVMInt1TypeInContext(*ctx) })
     }
 
-    pub fn i8(ctx: LLVMContextRef) -> Self {
-        Type::from(unsafe { llvm_sys::core::LLVMInt8TypeInContext(ctx) })
+    pub fn i8(ctx: Context<'ll>) -> Self {
+        Type::from(unsafe { llvm::LLVMInt8TypeInContext(*ctx) })
     }
 
-    pub fn i16(ctx: LLVMContextRef) -> Self {
-        Type::from(unsafe { llvm_sys::core::LLVMInt16TypeInContext(ctx) })
+    pub fn i16(ctx: Context<'ll>) -> Self {
+        Type::from(unsafe { llvm::LLVMInt16TypeInContext(*ctx) })
     }
 
-    pub fn i32(ctx: LLVMContextRef) -> Self {
-        Type::from(unsafe { llvm_sys::core::LLVMInt32TypeInContext(ctx) })
+    pub fn i32(ctx: Context<'ll>) -> Self {
+        Type::from(unsafe { llvm::LLVMInt32TypeInContext(*ctx) })
     }
 
-    pub fn i64(ctx: LLVMContextRef) -> Self {
-        Type::from(unsafe { llvm_sys::core::LLVMInt64TypeInContext(ctx) })
+    pub fn i64(ctx: Context<'ll>) -> Self {
+        Type::from(unsafe { llvm::LLVMInt64TypeInContext(*ctx) })
     }
 
-    pub fn i128(ctx: LLVMContextRef) -> Self {
-        Type::from(unsafe { llvm_sys::core::LLVMIntTypeInContext(ctx, 128) })
+    pub fn i128(ctx: Context<'ll>) -> Self {
+        Type::from(unsafe { llvm::LLVMIntTypeInContext(*ctx, 128) })
     }
 
-    pub fn f32(ctx: LLVMContextRef) -> Self {
-        Type::from(unsafe { llvm_sys::core::LLVMFloatTypeInContext(ctx) })
+    pub fn f32(ctx: Context<'ll>) -> Self {
+        Type::from(unsafe { llvm::LLVMFloatTypeInContext(*ctx) })
     }
 
-    pub fn f64(ctx: LLVMContextRef) -> Self {
-        Type::from(unsafe { llvm_sys::core::LLVMDoubleTypeInContext(ctx) })
+    pub fn f64(ctx: Context<'ll>) -> Self {
+        Type::from(unsafe { llvm::LLVMDoubleTypeInContext(*ctx) })
     }
 
     pub fn ptr_to(&self) -> Self {
-        Type::from(unsafe { llvm_sys::core::LLVMPointerType(self.0, 0) })
+        Type::from(unsafe { llvm::LLVMPointerType(self.0, 0) })
     }
 
-    pub fn struct_(ctx: LLVMContextRef, els: &[Type], packed: bool) -> Self {
+    pub fn struct_(ctx: Context<'ll>, els: &[Type], packed: bool) -> Self {
         Type::from(unsafe {
-            llvm_sys::core::LLVMStructTypeInContext(
-                ctx,
+            llvm::LLVMStructTypeInContext(
+                *ctx,
                 els.as_ptr() as *mut _,
                 els.len() as c_uint,
-                packed as i32,
+                packed as u32,
             )
         })
     }
 
     //TODO: consider to use `ty: &Type`
     pub fn array(&self, len: u32) -> Self {
-        Type::from(unsafe { llvm_sys::core::LLVMArrayType(self.0, len) })
+        Type::from(unsafe { llvm::LLVMArrayType(self.0, len) })
     }
 
-    pub fn named_struct(ctx: LLVMContextRef, name: &str) -> Self {
+    pub fn named_struct(ctx: Context<'ll>, name: &str) -> Self {
         let c_str = CString::new(name).unwrap();
-        Type::from(unsafe { llvm_sys::core::LLVMStructCreateNamed(ctx, c_str.as_ptr()) })
+        Type::from(unsafe { llvm::LLVMStructCreateNamed(*ctx, c_str.as_ptr()) })
     }
 
     pub fn vector(&self, len: u64) -> Self {
-        Type::from(unsafe { llvm_sys::core::LLVMVectorType(self.0, len as c_uint) })
+        Type::from(unsafe { llvm::LLVMVectorType(self.0, len as c_uint) })
     }
 
     pub fn func(
-        ctx: &ContextCodeGen,
+        ctx: &ContextCodeGen<'ll>,
         func_type: &WASMFunctionType,
         call_conv: WASMCallConv,
     ) -> Self {
@@ -100,7 +102,7 @@ impl Type {
             }
         };
         Type::from(unsafe {
-            llvm_sys::core::LLVMFunctionType(
+            llvm::LLVMFunctionType(
                 *res_type,
                 param_types.as_ptr() as *mut _,
                 param_types.len() as c_uint,
@@ -110,6 +112,6 @@ impl Type {
     }
 
     pub fn get_element_type(&self) -> Self {
-        Type::from(unsafe { llvm_sys::core::LLVMGetElementType(self.0) })
+        Type::from(unsafe { llvm::LLVMGetElementType(self.0) })
     }
 }

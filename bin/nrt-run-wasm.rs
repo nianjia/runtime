@@ -4,11 +4,16 @@ extern crate nrt;
 extern crate parity_wasm;
 use clap::{App, Arg};
 use nrt::wasm::Module;
+use std::fs::File;
+use std::io::Write;
 
 fn run(file: &str) {
     let wasm_module = Module::from(parity_wasm::deserialize_file(file).unwrap());
 
     let compiled_module = nrt::codegen::compile_module(&wasm_module);
+
+    let mut file = File::create("foo.txt").unwrap();
+    file.write_all(&compiled_module).unwrap();
 
     // unreachable!()
 

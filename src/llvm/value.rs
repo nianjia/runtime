@@ -27,7 +27,7 @@ impl<'ll> Value<'ll> {
         Value::from(unsafe { llvm::LLVMConstPtrToInt(self.0, *ty) })
     }
 
-    pub fn get_type(&self) -> Type<'ll> {
+    pub fn get_type(&self) -> Type {
         Type::from(unsafe { llvm::LLVMTypeOf(self.0) })
     }
 

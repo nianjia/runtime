@@ -1,16 +1,16 @@
 use super::{ContextCodeGen, FunctionCodeGen, ModuleCodeGen};
 use wasm::Module as WASMModule;
 
-pub trait VariableInstrEmit {
+pub trait VariableInstrEmit<'ll> {
     declare_variable_instrs!(declear_op, _);
 }
 
-impl VariableInstrEmit for FunctionCodeGen {
+impl<'ll> VariableInstrEmit<'ll> for FunctionCodeGen<'ll> {
     fn get_local(
         &mut self,
-        ctx: &ContextCodeGen,
+        ctx: &ContextCodeGen<'ll>,
         wasm_module: &WASMModule,
-        module: &ModuleCodeGen,
+        module: &ModuleCodeGen<'ll>,
         index: u32,
     ) {
         let val = self
@@ -21,9 +21,9 @@ impl VariableInstrEmit for FunctionCodeGen {
 
     fn set_local(
         &mut self,
-        ctx: &ContextCodeGen,
+        ctx: &ContextCodeGen<'ll>,
         wasm_module: &WASMModule,
-        module: &ModuleCodeGen,
+        module: &ModuleCodeGen<'ll>,
         index: u32,
     ) {
         let var = self.pop();
@@ -39,9 +39,9 @@ impl VariableInstrEmit for FunctionCodeGen {
 
     fn get_global(
         &mut self,
-        ctx: &ContextCodeGen,
+        ctx: &ContextCodeGen<'ll>,
         wasm_module: &WASMModule,
-        module: &ModuleCodeGen,
+        module: &ModuleCodeGen<'ll>,
         index: u32,
     ) {
         let wasm_type = wasm_module.globals().get_type(index as usize);

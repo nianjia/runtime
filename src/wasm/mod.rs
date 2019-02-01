@@ -59,11 +59,39 @@ impl Function {
 }
 
 #[derive(Debug)]
-struct Import<T: types::Type>(T);
+pub struct Import<T: types::Type> {
+    ty: T,
+    module_name: String,
+    export_name: String,
+}
+
+impl<T: types::Type> Import<T> {
+    pub fn module_name(&self) -> &str {
+        &self.module_name
+    }
+
+    pub fn export_name(&self) -> &str {
+        &self.export_name
+    }
+
+    pub fn get_type(&self) -> &T {
+        &self.ty
+    }
+}
+
+impl<T: types::Type> Import<T> {
+    fn new<U: Into<String>, S: Into<String>>(ty: T, module_name: U, export_name: S) -> Import<T> {
+        Self {
+            ty,
+            module_name: module_name.into(),
+            export_name: export_name.into(),
+        }
+    }
+}
 
 impl<T: Type> Entry<T> for Import<T> {
     fn get_type(&self) -> &T {
-        &self.0
+        &self.ty
     }
 }
 
@@ -76,6 +104,14 @@ pub struct CombinedDeclear<T: Def<U>, U: Type> {
 impl<T: Def<U>, U: Type> CombinedDeclear<T, U> {
     pub fn len(&self) -> usize {
         self.defines.len() + self.imports.len()
+    }
+
+    pub fn imports(&self) -> &[Import<U>] {
+        &self.imports
+    }
+
+    pub fn defines(&self) -> &[T] {
+        &self.defines
     }
 
     pub fn get_type(&self, index: usize) -> &U {
@@ -157,12 +193,15 @@ impl From<parity_wasm::elements::Module> for Module {
                 .iter()
                 .filter_map(|t| {
                     if let parity_wasm::elements::External::Global(global_ty) = t.external() {
-                        Some(*global_ty)
+                        Some(Import::new(
+                            GlobalType::from(*global_ty),
+                            t.module(),
+                            t.field(),
+                        ))
                     } else {
                         None
                     }
                 })
-                .map(|t| Import(GlobalType::from(t)))
                 .collect(),
         };
 
@@ -187,12 +226,15 @@ impl From<parity_wasm::elements::Module> for Module {
                 .iter()
                 .filter_map(|t| {
                     if let parity_wasm::elements::External::Function(index) = t.external() {
-                        Some(*index)
+                        Some(Import::new(
+                            func_types[*index as usize].clone(),
+                            t.module(),
+                            t.field(),
+                        ))
                     } else {
                         None
                     }
                 })
-                .map(|t| Import(func_types[t as usize].clone()))
                 .collect(),
         };
 

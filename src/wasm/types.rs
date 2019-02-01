@@ -60,10 +60,34 @@ impl From<BlockType> for ValueType {
     }
 }
 
-define_type_wrapper!(pub I32, i32);
-define_type_wrapper!(pub I64, i64);
-define_type_wrapper!(pub F32, f32);
-define_type_wrapper!(pub F64, f64);
+pub struct I32(pub i32);
+
+impl From<i32> for I32 {
+    fn from(v: i32) -> I32 {
+        I32(v)
+    }
+}
+
+pub struct I64(pub i64);
+impl From<i64> for I64 {
+    fn from(v: i64) -> I64 {
+        I64(v)
+    }
+}
+
+pub struct F32(pub f32);
+impl From<f32> for F32 {
+    fn from(v: f32) -> F32 {
+        F32(v)
+    }
+}
+
+pub struct F64(pub f64);
+impl From<f64> for F64 {
+    fn from(v: f64) -> F64 {
+        F64(v)
+    }
+}
 
 #[repr(C, align(16))]
 pub union V128 {

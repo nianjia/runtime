@@ -23,10 +23,11 @@ pub(self) use self::module::ModuleCodeGen;
 pub(self) use self::value::Value;
 
 use self::common::Literal;
-use llvm_sys;
-use llvm_sys::prelude::{LLVMBasicBlockRef, LLVMMemoryBufferRef, LLVMMetadataRef, LLVMValueRef};
-use llvm_sys::target::LLVMTargetDataRef;
-use llvm_sys::target_machine::LLVMTargetMachineRef;
+// use llvm_sys;
+// use llvm_sys::prelude::{LLVMBasicBlockRef, LLVMMemoryBufferRef, LLVMMetadataRef, LLVMValueRef};
+// use llvm_sys::target::LLVMTargetDataRef;
+// use llvm_sys::target_machine::LLVMTargetMachineRef;
+use llvm;
 use std::ffi::CString;
 use std::ops::Deref;
 use std::rc::Rc;
@@ -35,24 +36,24 @@ use wasm::ValueType;
 
 use wasm::Module as WASMModule;
 
-define_type_wrapper!(pub Metadata, LLVMMetadataRef);
-define_type_wrapper!(pub PHINode, LLVMValueRef);
+define_type_wrapper!(pub Metadata, llvm::Metadata);
+define_type_wrapper!(pub PHINode, llvm::Value);
 
-impl PHINode {
+impl<'ll> PHINode<'ll> {
     #[inline]
     pub fn add_incoming(&self, v: Value, block: BasicBlock) {
         let mut v_deref = *v;
         let mut block_deref = *block;
-        unsafe { llvm_sys::core::LLVMAddIncoming(self.0, &mut v_deref, &mut block_deref, 1) };
+        unsafe { llvm::LLVMAddIncoming(self.0, &mut v_deref, &mut block_deref, 1) };
     }
 
     #[inline]
     pub fn count_incoming(&self) -> u32 {
-        unsafe { llvm_sys::core::LLVMCountIncoming(self.0) }
+        unsafe { llvm::LLVMCountIncoming(self.0) }
     }
 
     pub fn erase_from_parent(self) {
-        unsafe { llvm_sys::core::LLVMDeleteGlobal(self.0) }
+        unsafe { llvm::LLVMDeleteGlobal(self.0) }
     }
 }
 
@@ -76,25 +77,25 @@ pub enum ContorlContextType {
     Catch,
 }
 
-pub(in codegen) struct ControlContext {
+pub(in crate::codegen) struct ControlContext<'ll> {
     pub ty: ContorlContextType,
-    pub end_block: BasicBlock,
-    pub end_PHIs: Option<PHINode>,
-    else_block: Option<BasicBlock>,
-    pub else_args: Vec<Value>,
+    pub end_block: BasicBlock<'ll>,
+    pub end_PHIs: Option<PHINode<'ll>>,
+    else_block: Option<BasicBlock<'ll>>,
+    pub else_args: Vec<Value<'ll>>,
     pub res_types: Option<ValueType>,
-    pub(in codegen) outer_stack_size: usize,
+    pub(in crate::codegen) outer_stack_size: usize,
     outer_branch_target_stack_size: usize,
     pub is_reachable: bool,
 }
 
-impl ControlContext {
+impl<'ll> ControlContext<'ll> {
     pub fn new(
         ty: ContorlContextType,
         res_types: Option<ValueType>,
-        end_block: BasicBlock,
-        end_PHIs: Option<PHINode>,
-        else_block: Option<BasicBlock>,
+        end_block: BasicBlock<'ll>,
+        end_PHIs: Option<PHINode<'ll>>,
+        else_block: Option<BasicBlock<'ll>>,
         stack_size: usize,
         branch_target_stack_size: usize,
     ) -> Self {
@@ -117,21 +118,25 @@ impl ControlContext {
     }
 }
 
-define_type_wrapper!(pub BasicBlock, LLVMBasicBlockRef);
+define_type_wrapper!(pub BasicBlock, llvm::BasicBlock);
 
-impl BasicBlock {
+impl<'ll> BasicBlock<'ll> {
     pub fn move_after(&self, move_pos: BasicBlock) {
         unsafe {
-            llvm_sys::core::LLVMMoveBasicBlockAfter(self.0, move_pos.0);
+            llvm::LLVMMoveBasicBlockAfter(self.0, move_pos.0);
         }
     }
 
     pub fn erase_from_parent(self) {
-        unsafe { llvm_sys::core::LLVMDeleteBasicBlock(self.0) }
+        unsafe { llvm::LLVMDeleteBasicBlock(self.0) }
     }
 }
 
-pub fn get_compartment_address(ctx: &ContextCodeGen, builder: Builder, ctx_ptr: Value) -> Value {
+pub fn get_compartment_address<'ll>(
+    ctx: &ContextCodeGen<'ll>,
+    builder: Builder<'ll>,
+    ctx_ptr: Value<'ll>,
+) -> Value<'ll> {
     // Derive the compartment runtime data from the context address by masking off the lower
     // 32 bits.
     builder.create_int_to_ptr(
@@ -151,27 +156,27 @@ pub fn compile_module(wasm_module: &WASMModule) -> Vec<u8> {
     module.compile(wasm_module)
 }
 
-define_type_wrapper!(pub TargetMachine, LLVMTargetMachineRef);
+define_type_wrapper!(pub TargetMachine, llvm::TargetMachine);
 
-impl TargetMachine {
+impl<'ll> TargetMachine<'ll> {
     pub fn create_data_layout(&self) -> String {
         unsafe {
-            let target_data = llvm_sys::target_machine::LLVMCreateTargetDataLayout(self.0);
-            let c_str = llvm_sys::target::LLVMCopyStringRepOfTargetData(target_data);
+            let target_data = llvm::LLVMCreateTargetDataLayout(self.0);
+            let c_str = llvm::LLVMCopyStringRepOfTargetData(target_data);
             let s = CString::from_raw(c_str).into_string().unwrap();
             s
         }
     }
 }
 
-define_type_wrapper!(pub MemoryBuffer, LLVMMemoryBufferRef);
+define_type_wrapper!(pub MemoryBuffer, llvm::MemoryBuffer);
 
-impl MemoryBuffer {
+impl<'ll> MemoryBuffer<'ll> {
     pub fn get_data(&self) -> *mut u8 {
-        unsafe { llvm_sys::core::LLVMGetBufferStart(self.0) as *mut _ }
+        unsafe { llvm::LLVMGetBufferStart(self.0) as *mut _ }
     }
 
     pub fn get_len(&self) -> usize {
-        unsafe { llvm_sys::core::LLVMGetBufferSize(self.0) }
+        unsafe { llvm::LLVMGetBufferSize(self.0) as usize }
     }
 }

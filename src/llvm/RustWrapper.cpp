@@ -1707,7 +1707,8 @@ LLVMRustCreateTargetMachine(const char *TripleStr, const char *CPU,
 
 extern "C" bool LLVMRustInitializeNativeTarget()
 {
-  return llvm::InitializeNativeTarget();
+  bool res = llvm::InitializeNativeTarget();
+  return res;
 }
 
 extern "C" bool LLVMRustInitializeNativeTargetAsmPrinter()

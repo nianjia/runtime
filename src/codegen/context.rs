@@ -10,11 +10,11 @@ use wasm::{
 lazy_static! {
     static ref IS_LLVM_INITIALIZED: bool = {
         unsafe {
-            assert!(llvm::LLVMRustInitializeNativeTarget() == 0);
-            assert!(llvm::LLVMRustInitializeNativeTargetAsmPrinter() == 0);
-            assert!(llvm::LLVMRustInitializeNativeTargetAsmParser() == 0);
-            assert!(llvm::LLVMRustInitializeNativeTargetDisassembler() == 0);
-            assert!(llvm::LLVMLoadLibraryPermanently(std::ptr::null()) == 0);
+            assert!(!llvm::LLVMRustInitializeNativeTarget());
+            assert!(!llvm::LLVMRustInitializeNativeTargetAsmPrinter());
+            assert!(!llvm::LLVMRustInitializeNativeTargetAsmParser());
+            assert!(!llvm::LLVMRustInitializeNativeTargetDisassembler());
+            assert!(!llvm::LLVMLoadLibraryPermanently(std::ptr::null()));
         };
         true
     };

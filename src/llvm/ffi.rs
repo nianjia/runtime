@@ -1751,11 +1751,11 @@ extern "C" {
 
     // pub fn LLVMRustGetSectionName(SI: &SectionIterator, data: &mut *const c_char) -> size_t;
 
-    pub fn LLVMRustInitializeNativeTarget() -> Bool;
-    pub fn LLVMRustInitializeNativeTargetAsmPrinter() -> Bool;
-    pub fn LLVMRustInitializeNativeTargetAsmParser() -> Bool;
-    pub fn LLVMRustInitializeNativeTargetDisassembler() -> Bool;
-    pub fn LLVMLoadLibraryPermanently(Filename: *const c_char) -> Bool;
+    pub fn LLVMRustInitializeNativeTarget() -> bool;
+    pub fn LLVMRustInitializeNativeTargetAsmPrinter() -> bool;
+    pub fn LLVMRustInitializeNativeTargetAsmParser() -> bool;
+    pub fn LLVMRustInitializeNativeTargetDisassembler() -> bool;
+    pub fn LLVMLoadLibraryPermanently(Filename: *const c_char) -> bool;
 
     pub fn LLVMAddPromoteMemoryToRegisterPass<'a>(PM: &PassManager<'a>);
     pub fn LLVMAddInstructionCombiningPass<'a>(PM: &PassManager<'a>);

@@ -3,8 +3,7 @@ mod defines;
 mod imports;
 pub mod types;
 
-pub use self::types::FunctionType;
-pub use self::types::ValueType;
+pub use self::types::*;
 use self::types::{GlobalType, Type};
 pub use parity_wasm::elements::BlockType;
 pub use parity_wasm::elements::BrTableData;
@@ -169,6 +168,7 @@ impl Def<GlobalType> for Global {}
 
 pub struct Module {
     types: Vec<FunctionType>,
+    memorys: Vec<MemoryType>,
     functions: CombinedDeclear<Function, FunctionType>,
     globals: CombinedDeclear<Global, GlobalType>,
 }
@@ -183,6 +183,15 @@ impl From<parity_wasm::elements::Module> for Module {
                 .map(|t| match t {
                     parity_wasm::elements::Type::Function(ty) => FunctionType::from(ty.clone()),
                 })
+                .collect(),
+        };
+
+        let memorys = match module.memory_section() {
+            None => Vec::new(),
+            Some(section) => section
+                .entries()
+                .iter()
+                .map(|t| MemoryType::from(*t))
                 .collect(),
         };
 
@@ -253,6 +262,7 @@ impl From<parity_wasm::elements::Module> for Module {
 
         Self {
             types: func_types,
+            memorys,
             functions: CombinedDeclear {
                 defines: functions,
                 imports: func_imports,

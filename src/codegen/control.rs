@@ -5,7 +5,7 @@ use super::{
     ModuleCodeGen,
 };
 use std::rc::Rc;
-use wasm::{
+use crate::wasm::{
     call_conv::CallConv as WASMCallConv, BlockType, BrTableData, FunctionType,
     Module as WASMModule, ValueType,
 };

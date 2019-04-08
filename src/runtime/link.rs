@@ -1,6 +1,6 @@
-use wasm::types::Type;
-use wasm::Import as WASMImport;
-use wasm::Module as WASMModule;
+use crate::wasm::types::Type;
+use crate::wasm::Import as WASMImport;
+use crate::wasm::Module as WASMModule;
 
 struct LinkResult {}
 

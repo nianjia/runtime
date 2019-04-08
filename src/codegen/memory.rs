@@ -2,8 +2,8 @@ use super::_type::Type;
 use super::common::Literal;
 use super::value::Value;
 use super::{Builder, ContextCodeGen, FunctionCodeGen, ModuleCodeGen};
-use wasm::types::I32;
-use wasm::Module as WASMModule;
+use crate::wasm::types::I32;
+use crate::wasm::Module as WASMModule;
 
 fn get_offset_and_bounded_addr<'ll>(
     ctx: &ContextCodeGen<'ll>,

@@ -22,16 +22,23 @@ macro_rules! decode_instr {
 macro_rules! declear_op {
     ($var:tt, $instr:ident, $name:ident) => {
         fn $name(&mut self,
-            &$crate::codegen::ContextCodeGen<'ll>,
-            &$crate::wasm::Module,
-            &$crate::codegen::ModuleCodeGen<'ll>);
+            _: &$crate::codegen::ContextCodeGen<'ll>,
+            _: &$crate::wasm::Module,
+            _: &$crate::codegen::ModuleCodeGen<'ll>);
     };
-    ($var:tt, $instr:ident, $name:ident, $($args:tt)*) => {
+    ($var:tt, $instr:ident, $name:ident, $arg1:ty) => {
         fn $name(&mut self,
-            &$crate::codegen::ContextCodeGen<'ll>,
-            &$crate::wasm::Module,
-            &$crate::codegen::ModuleCodeGen<'ll>,
-            $($args)*);
+            _: &$crate::codegen::ContextCodeGen<'ll>,
+            _: &$crate::wasm::Module,
+            _: &$crate::codegen::ModuleCodeGen<'ll>,
+            _: $arg1);
+    };
+    ($var:tt, $instr:ident, $name:ident, $arg1:ty, $arg2:ty) => {
+        fn $name(&mut self,
+            _: &$crate::codegen::ContextCodeGen<'ll>,
+            _: &$crate::wasm::Module,
+            _: &$crate::codegen::ModuleCodeGen<'ll>,
+            _: $arg1, _: $arg2);
     };
 }
 

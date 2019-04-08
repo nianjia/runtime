@@ -3,21 +3,18 @@ extern crate clap;
 extern crate nrt;
 extern crate parity_wasm;
 use clap::{App, Arg};
+use nrt::runtime::Compartment;
 use nrt::wasm::Module;
 use std::fs::File;
 use std::io::Write;
 
-fn run(file: &str) {
+fn compile(file: &str) {
     let wasm_module = Module::from(parity_wasm::deserialize_file(file).unwrap());
 
     let compiled_module = nrt::codegen::compile_module(&wasm_module);
 
-    let mut file = File::create("foo.txt").unwrap();
-    file.write_all(&compiled_module).unwrap();
-
-    // unreachable!()
-
-    // let linked_module = nrt::link_module(compiled_module);
+    let compartment = Compartment::new();
+    nrt::runtime::setup_env(&compartment, &wasm_module);
 }
 
 fn main() {
@@ -31,5 +28,5 @@ fn main() {
         .get_matches();
 
     let wasm_file = matches.value_of("WASM-FILE").unwrap();
-    run(wasm_file);
+    compile(wasm_file);
 }

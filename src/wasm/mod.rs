@@ -7,15 +7,26 @@ pub use self::types::*;
 use self::types::{GlobalType, Type};
 pub use parity_wasm::elements::BlockType;
 pub use parity_wasm::elements::BrTableData;
+pub use parity_wasm::elements::InitExpr;
 pub use parity_wasm::elements::Instruction;
 pub use parity_wasm::elements::Instructions;
 use std::ops::Index;
+
+pub const PAGE_SHIFT: u8 = 16;
+pub const PAGE_SIZE: u64 = 1 << PAGE_SHIFT;
 
 pub trait Entry<T: Type> {
     fn get_type(&self) -> &T;
 }
 
 pub trait Def<T: Type>: Entry<T> {}
+
+pub enum Value {
+    I32(i32),
+    U32(u32),
+    U64(u64),
+    I64(i64),
+}
 
 #[derive(Debug)]
 pub struct Function {
@@ -147,7 +158,18 @@ impl<T: Def<U>, U: Type> CombinedDeclear<T, U> {
     }
 }
 
-pub struct Memory;
+pub struct Memory {
+    ty: MemoryType,
+}
+
+impl Entry<MemoryType> for Memory {
+    fn get_type(&self) -> &MemoryType {
+        &self.ty
+    }
+}
+
+impl Def<MemoryType> for Memory {}
+
 pub struct Table;
 
 #[derive(Debug)]
@@ -166,11 +188,47 @@ impl Entry<GlobalType> for Global {
 }
 impl Def<GlobalType> for Global {}
 
+pub struct Data {
+    idx: u32,
+    offset_instr: Instruction,
+    value: Vec<u8>,
+}
+
+impl Data {
+    #[inline]
+    pub fn offset_instr(&self) -> &Instruction {
+        &self.offset_instr
+    }
+
+    #[inline]
+    pub fn value(&self) -> &[u8] {
+        &self.value
+    }
+}
+
+impl From<parity_wasm::elements::DataSegment> for Data {
+    fn from(data: parity_wasm::elements::DataSegment) -> Self {
+        Data {
+            idx: data.index(),
+            offset_instr: data
+                .offset()
+                .clone()
+                .unwrap()
+                .code()
+                .last()
+                .unwrap()
+                .clone(), // TODO: deal with None!
+            value: data.value().to_vec(),
+        }
+    }
+}
+
 pub struct Module {
     types: Vec<FunctionType>,
-    memorys: Vec<MemoryType>,
+    memorys: CombinedDeclear<Memory, MemoryType>,
     functions: CombinedDeclear<Function, FunctionType>,
     globals: CombinedDeclear<Global, GlobalType>,
+    datas: Vec<Data>,
 }
 
 impl From<parity_wasm::elements::Module> for Module {
@@ -191,7 +249,24 @@ impl From<parity_wasm::elements::Module> for Module {
             Some(section) => section
                 .entries()
                 .iter()
-                .map(|t| MemoryType::from(*t))
+                .map(|t| Memory {
+                    ty: MemoryType::from(*t),
+                })
+                .collect(),
+        };
+
+        let memory_imports = match module.import_section() {
+            None => Vec::new(),
+            Some(section) => section
+                .entries()
+                .iter()
+                .filter_map(|t| {
+                    if let parity_wasm::elements::External::Memory(ty) = t.external() {
+                        Some(Import::new(MemoryType::from(*ty), t.module(), t.field()))
+                    } else {
+                        None
+                    }
+                })
                 .collect(),
         };
 
@@ -260,9 +335,21 @@ impl From<parity_wasm::elements::Module> for Module {
             .map(|(def, body)| Function::new(&func_types, *def, body.clone()))
             .collect();
 
+        let datas = match module.data_section() {
+            None => Vec::new(),
+            Some(sections) => sections
+                .entries()
+                .iter()
+                .map(|data| Data::from(data.clone()))
+                .collect(),
+        };
+
         Self {
             types: func_types,
-            memorys,
+            memorys: CombinedDeclear {
+                defines: memorys,
+                imports: memory_imports,
+            },
             functions: CombinedDeclear {
                 defines: functions,
                 imports: func_imports,
@@ -271,6 +358,7 @@ impl From<parity_wasm::elements::Module> for Module {
                 defines: global_defs,
                 imports: global_imports,
             },
+            datas,
         }
     }
 }
@@ -298,5 +386,20 @@ impl Module {
 
     pub fn globals(&self) -> &CombinedDeclear<Global, GlobalType> {
         &self.globals
+    }
+
+    #[inline]
+    pub fn memorys(&self) -> &[Memory] {
+        &self.memorys.defines
+    }
+
+    #[inline]
+    pub fn memorys_count(&self) -> usize {
+        self.memorys.len()
+    }
+
+    #[inline]
+    pub fn datas(&self) -> &[Data] {
+        &self.datas()
     }
 }

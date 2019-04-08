@@ -4,14 +4,14 @@ use super::{
     Builder, CodeGen, ContorlContextType, ControlContext, PHINode, Type, Value,
 };
 use libc::c_uint;
-use llvm;
+use crate::llvm;
 // use llvm_sys::prelude::{LLVMBuilderRef, LLVMValueRef};
 // use llvm_sys::{self, LLVMCallConv};
 use std::ffi::{CStr, CString};
 use std::ops::Deref;
 use std::ptr::null;
 use std::rc::Rc;
-use wasm::{Function as WASMFunction, FunctionType, Instruction, Module as WASMModule, ValueType};
+use crate::wasm::{Function as WASMFunction, FunctionType, Instruction, Module as WASMModule, ValueType};
 
 define_type_wrapper!(pub Function, llvm::Value);
 

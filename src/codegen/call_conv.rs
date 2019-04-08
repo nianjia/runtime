@@ -1,5 +1,5 @@
-use llvm::CallConv as LLVMCallConv;
-use wasm::call_conv::CallConv as WASMCallConv;
+use crate::llvm::CallConv as LLVMCallConv;
+use crate::wasm::call_conv::CallConv as WASMCallConv;
 
 pub struct CallConv(LLVMCallConv);
 

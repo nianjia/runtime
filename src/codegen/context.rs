@@ -1,9 +1,10 @@
 use super::{_type::Type, value::Value, BasicBlock, Builder, FunctionCodeGen};
 use super::{common, function::Function, module::Module};
-use llvm;
+use crate::llvm;
+use lazy_static::lazy_static;
 use std::ffi::CString;
 use std::ops::Deref;
-use wasm::{
+use crate::wasm::{
     self, call_conv::CallConv as WASMCallConv, types::V128, Module as WASMModule, ValueType,
 };
 

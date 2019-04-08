@@ -1,5 +1,5 @@
 use super::{ContextCodeGen, FunctionCodeGen, ModuleCodeGen};
-use wasm::Module as WASMModule;
+use crate::wasm::Module as WASMModule;
 
 pub trait VariableInstrEmit<'ll> {
     declare_variable_instrs!(declear_op, _);

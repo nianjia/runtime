@@ -4,8 +4,8 @@ use super::Metadata;
 use super::Type;
 use super::Value;
 use libc::c_uint;
-use llvm;
-use wasm::types::*;
+use crate::llvm;
+use crate::wasm::types::*;
 
 pub trait Literal {
     fn emit_const<'ll>(&self, ctx: &ContextCodeGen<'ll>) -> Value<'ll>;

@@ -1,6 +1,6 @@
 use super::BasicBlock;
 use super::Type;
-use llvm;
+use crate::llvm;
 // use llvm_sys::prelude::LLVMValueRef;
 use std::fmt;
 use std::hash::{Hash, Hasher};

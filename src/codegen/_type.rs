@@ -1,13 +1,13 @@
 use super::context::Context;
 use super::ContextCodeGen;
 use libc::c_uint;
-use llvm;
+use crate::llvm;
 //use llvm_sys;
 //use llvm_sys::prelude::{LLVMContextRef, LLVMTypeRef};
 use std::ffi::CString;
 use std::ops::Deref;
-use wasm::call_conv::CallConv as WASMCallConv;
-use wasm::FunctionType as WASMFunctionType;
+use crate::wasm::call_conv::CallConv as WASMCallConv;
+use crate::wasm::FunctionType as WASMFunctionType;
 
 define_type_wrapper!(pub Type, llvm::Type);
 

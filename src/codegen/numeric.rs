@@ -1,7 +1,7 @@
 use super::common::Literal;
 use super::{FunctionCodeGen, ModuleCodeGen};
-use wasm::types::*;
-use wasm::Module as WASMModule;
+use crate::wasm::types::*;
+use crate::wasm::Module as WASMModule;
 
 #[repr(C)]
 struct LiteralImm<T: Type>(T);

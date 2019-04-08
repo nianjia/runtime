@@ -1,6 +1,6 @@
 // use llvm_sys::prelude::LLVMValueRef;
-use llvm;
-use wasm::call_conv::CallConv as WASMCallConv;
+use crate::llvm;
+use crate::wasm::call_conv::CallConv as WASMCallConv;
 
 define_type_wrapper!(pub CallInst, llvm::Value);
 

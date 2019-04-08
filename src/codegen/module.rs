@@ -2,13 +2,13 @@ use super::function::Function;
 use super::{
     common, ContextCodeGen, FunctionCodeGen, MemoryBuffer, Metadata, TargetMachine, Type, Value,
 };
-use llvm;
+use crate::llvm;
 // use llvm_sys::prelude::{LLVMDIBuilderRef, LLVMMetadataRef, LLVMModuleRef, LLVMPassManagerRef};
 // use llvm_sys::target_machine::LLVMCodeGenFileType;
 use std::ffi::{CStr, CString};
 use std::rc::Rc;
-use wasm::Module as WASMModule;
-use wasm::{
+use crate::wasm::Module as WASMModule;
+use crate::wasm::{
     self, call_conv::CallConv as WASMCallConv, Entry, FunctionType as WASMFunctionType, ValueType,
 };
 

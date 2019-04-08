@@ -3,6 +3,7 @@ name = "nrt"
 version = "0.0.1"
 authors = ["Pengfei Zhang <zpfalpc23@gmail.com>"]
 build = "build.rs"
+edition = "2018"
 
 [[bin]]
 name = "nrt-run-wasm"
@@ -13,10 +14,12 @@ path = "bin/nrt-run-wasm.rs"
 # path = "bin/nianjia-lld.rs"
 
 [dependencies]
-parity-wasm = "0.35.4"
+parity-wasm = "0.37"
 bitflags = "1.0.4"
 lazy_static = "1.2.0"
 clap = "2.32.0"
+indexmap = "1.0.2"
+libc = "0.2.50"
 
 [build-dependencies]
 cc = "1.0.25"

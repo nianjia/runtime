@@ -1,5 +1,5 @@
 use super::{function::Function, inst::CallInst, BasicBlock, PHINode, Type, Value};
-use llvm;
+use crate::llvm;
 use std::ffi::CString;
 
 define_type_wrapper!(pub SwitchInst, llvm::Value);

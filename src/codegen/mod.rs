@@ -27,14 +27,14 @@ use self::common::Literal;
 // use llvm_sys::prelude::{LLVMBasicBlockRef, LLVMMemoryBufferRef, LLVMMetadataRef, LLVMValueRef};
 // use llvm_sys::target::LLVMTargetDataRef;
 // use llvm_sys::target_machine::LLVMTargetMachineRef;
-use llvm;
+use crate::llvm;
 use std::ffi::CString;
 use std::ops::Deref;
 use std::rc::Rc;
-use wasm::types::I64;
-use wasm::ValueType;
+use crate::wasm::types::I64;
+use crate::wasm::ValueType;
 
-use wasm::Module as WASMModule;
+use crate::wasm::Module as WASMModule;
 
 define_type_wrapper!(pub Metadata, llvm::Metadata);
 define_type_wrapper!(pub PHINode, llvm::Value);

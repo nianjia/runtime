@@ -200,6 +200,7 @@ impl FunctionType {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct MemoryType {
     min: u32,
     max: Option<u32>,
@@ -208,7 +209,6 @@ pub struct MemoryType {
 
 impl Type for MemoryType {}
 
-
 impl From<parity_wasm::elements::MemoryType> for MemoryType {
     fn from(mem_type: parity_wasm::elements::MemoryType) -> Self {
         let min = mem_type.limits().initial();
@@ -216,4 +216,12 @@ impl From<parity_wasm::elements::MemoryType> for MemoryType {
         let shared = mem_type.limits().shared();
         Self { min, max, shared }
     }
+}
+
+impl MemoryType {
+    pub fn min_pages(&self) -> u32 { self.min }
+
+    pub fn max_pages(&self) -> Option<u32> { self.max }
+
+    pub fn is_shared(&self) -> bool { self.shared }
 }

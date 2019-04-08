@@ -11,14 +11,6 @@
 #![feature(concat_idents)]
 #![allow(unused)]
 
-extern crate libc;
-#[macro_use]
-extern crate lazy_static;
-extern crate parity_wasm;
-extern crate smallvec;
-#[macro_use]
-extern crate bitflags;
-
 macro_rules! __define_type_wrapper_internal {
     (($($vis:tt)*) $name:ident, $llvm:ty) => {
         #[derive(Clone, Copy)]
@@ -64,6 +56,7 @@ macro_rules! define_type_wrapper {
 #[macro_use]
 pub mod codegen;
 mod llvm;
+mod stdlib;
 pub mod runtime;
-mod utils;
 pub mod wasm;
+mod platform;
